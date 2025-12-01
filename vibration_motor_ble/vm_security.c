@@ -7,6 +7,11 @@
 #include "mbedtls/cipher.h"
 #include "mbedtls/cmac.h"
 
+/* Critical section protection */
+/* TODO: Replace with actual SDK critical section API */
+#define VM_ENTER_CRITICAL()  /* __disable_irq() or similar */
+#define VM_EXIT_CRITICAL()   /* __enable_irq() or similar */
+
 static vm_security_state_t g_security_state;
 
 int vm_security_init(void)
@@ -125,13 +130,27 @@ static bool vm_verify_counter(uint64_t counter)
 
 static void vm_update_counter(uint64_t counter)
 {
+    /* Protect state access from concurrent BLE events */
+    VM_ENTER_CRITICAL();
+    
     g_security_state.last_counter = counter;
     g_security_state.packets_since_save++;
     
-    /* Periodically save to flash */
-    if (g_security_state.packets_since_save >= VM_COUNTER_FLASH_INTERVAL) {
-        vm_storage_save_counter(counter);
-        g_security_state.packets_since_save = 0;
+    /* Check if we need to save */
+    bool need_save = (g_security_state.packets_since_save >= VM_COUNTER_FLASH_INTERVAL);
+    
+    VM_EXIT_CRITICAL();
+    
+    /* Save to flash outside critical section (may block) */
+    if (need_save) {
+        int ret = vm_storage_save_counter(counter);
+        if (ret == 0) {
+            /* Success - reset counter */
+            VM_ENTER_CRITICAL();
+            g_security_state.packets_since_save = 0;
+            VM_EXIT_CRITICAL();
+        }
+        /* If failed, will retry on next packet (packets_since_save not reset) */
     }
 }
 
@@ -186,10 +205,23 @@ int vm_security_on_bonding_complete(const uint8_t *csrk)
 void vm_security_on_disconnect(void)
 {
     /* Ensure counter is persisted */
-    if (g_security_state.packets_since_save > 0) {
-        vm_storage_save_counter(g_security_state.last_counter);
+    VM_ENTER_CRITICAL();
+    bool need_save = (g_security_state.packets_since_save > 0);
+    uint64_t counter = g_security_state.last_counter;
+    VM_EXIT_CRITICAL();
+    
+    if (need_save) {
+        vm_storage_save_counter(counter);
+        VM_ENTER_CRITICAL();
         g_security_state.packets_since_save = 0;
+        VM_EXIT_CRITICAL();
     }
+}
+
+void vm_security_on_power_down(void)
+{
+    /* Same as disconnect - save counter before power loss */
+    vm_security_on_disconnect();
 }
 
 int vm_security_clear_bonding(void)

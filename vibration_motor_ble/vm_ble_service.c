@@ -9,8 +9,46 @@
 #include "btstack/bluetooth.h"
 #include "btstack/btstack_typedef.h"
 
+/* Logging */
+#define log_info(fmt, ...)  printf("[VM_BLE] " fmt, ##__VA_ARGS__)
+#define log_error(fmt, ...) printf("[VM_BLE_ERR] " fmt, ##__VA_ARGS__)
+
+/* Encryption process types */
+#ifndef LINK_ENCRYPTION_RECONNECT
+#define LINK_ENCRYPTION_RECONNECT  2  /* Reconnection with existing bonding */
+#endif
+
 /* Connection handle */
 static uint16_t vm_conn_handle = 0;
+
+/*
+ * Derive CSRK from device Bluetooth address
+ * This provides a device-specific key without needing BLE stack CSRK access
+ * The phone app must use the same derivation method
+ */
+static void vm_derive_csrk_from_device_addr(uint8_t *csrk)
+{
+    /* TODO: Get device BD_ADDR from SDK */
+    /* For now, use a placeholder - this MUST be replaced with actual BD_ADDR */
+    uint8_t bd_addr[6] = {0x00, 0x00, 0x00, 0x00, 0x00, 0x00};
+    
+    /* Simple key derivation: SHA-256(BD_ADDR || "VM_MOTOR_KEY") */
+    /* For production, use proper KDF like HKDF */
+    /* For now, use a simple expansion */
+    const char *salt = "VM_MOTOR_KEY_V1";
+    
+    /* Simple derivation: repeat and XOR */
+    for (int i = 0; i < 16; i++) {
+        csrk[i] = bd_addr[i % 6] ^ salt[i % 15] ^ (i * 0x5A);
+    }
+    
+    /* NOTE: This is a placeholder implementation!
+     * Production code should:
+     * 1. Get actual BD_ADDR from SDK
+     * 2. Use proper KDF (HKDF-SHA256)
+     * 3. Or exchange key via custom characteristic
+     */
+}
 
 uint64_t vm_get_counter_le48(const uint8_t *data)
 {
@@ -78,7 +116,12 @@ int vm_ble_handle_write(uint16_t conn_handle, const uint8_t *data, uint16_t len)
     }
     
     /* Set motor duty cycle */
-    vm_motor_set_duty(packet.duty);
+    ret = vm_motor_set_duty(packet.duty);
+    if (ret != 0) {
+        /* Motor control failed - but we already validated the packet */
+        /* Log error but return success to avoid confusing the phone */
+        log_error("Motor control failed: %d\n", ret);
+    }
     
     return VM_ERR_OK;
 }
@@ -154,7 +197,36 @@ static int vm_event_packet_handler(int event, u8 *packet, u16 size, u8 *ext_para
             
         case GATT_COMM_EVENT_ENCRYPTION_CHANGE:
             /* Encryption established - bonding may be complete */
-            /* CSRK extraction would happen here if needed */
+            log_info("ENCRYPTION_CHANGE: handle=%04x, state=%d, process=%d\n",
+                     little_endian_read_16(packet, 0), packet[2], packet[3]);
+            
+            if (packet[3] == LINK_ENCRYPTION_RECONNECT) {
+                /* Reconnection with existing bonding - already have CSRK */
+                log_info("Reconnection - bonding already exists\n");
+            } else {
+                /* New pairing - generate and save CSRK */
+                /* 
+                 * NOTE: Since SDK doesn't easily expose BLE CSRK, we use a
+                 * device-specific key derivation approach. The phone app must
+                 * use the same key derivation method.
+                 * 
+                 * Options:
+                 * 1. Use fixed application key (simplest, less secure)
+                 * 2. Derive from device address (device-specific)
+                 * 3. Exchange via custom characteristic (most flexible)
+                 * 
+                 * For now, using option 2: derive from BD_ADDR
+                 */
+                uint8_t csrk[16];
+                vm_derive_csrk_from_device_addr(csrk);
+                
+                int ret = vm_security_on_bonding_complete(csrk);
+                if (ret == 0) {
+                    log_info("Bonding complete - CSRK saved\n");
+                } else {
+                    log_error("Failed to save bonding data\n");
+                }
+            }
             break;
             
         default:
@@ -199,7 +271,10 @@ int vm_ble_service_init(void)
     }
     
     /* Register GATT profile with BLE stack */
+    /* Note: ble_gatt_server_set_profile returns void, so we can't check errors */
     ble_gatt_server_set_profile(vm_motor_profile_data, sizeof(vm_motor_profile_data));
+    
+    log_info("VM BLE service initialized successfully\n");
     
     /* Note: The server configuration (vm_server_cfg) needs to be registered
      * with the BLE stack during application initialization. This is typically
@@ -211,7 +286,8 @@ int vm_ble_service_init(void)
      *     .mtu_size = ATT_LOCAL_MTU_SIZE,
      *     .cbuffer_size = ATT_SEND_CBUF_SIZE,
      *     .multi_dev_flag = 0,
-     *     .server_config = &vm_server_cfg,
+     *     .server_config = vm_ble_get_server_config(),
+     *     .sm_config = vm_ble_get_sm_config(),
      * };
      * 
      * Then call: ble_gatt_server_init(&vm_gatt_control_block);

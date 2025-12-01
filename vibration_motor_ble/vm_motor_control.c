@@ -28,15 +28,18 @@ int vm_motor_init(void)
     return 0;
 }
 
-void vm_motor_set_duty(uint8_t duty)
+int vm_motor_set_duty(uint8_t duty)
 {
     /* Convert 0-255 to 0-10000 (0% to 100% with 0.01% resolution) */
     u16 duty_value = ((u32)duty * 10000) / 255;
     
     /* Set PWM duty cycle */
+    /* Note: mcpwm_set_duty returns void in SDK, so we can't check errors */
     mcpwm_set_duty(g_pwm_channel, duty_value);
     
     g_current_duty = duty;
+    
+    return 0;  /* Success */
 }
 
 void vm_motor_stop(void)

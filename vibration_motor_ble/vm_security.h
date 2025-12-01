@@ -50,6 +50,13 @@ int vm_security_on_bonding_complete(const uint8_t *csrk);
 void vm_security_on_disconnect(void);
 
 /**
+ * Handle power-down event
+ * Should be called from application's power-down callback
+ * Ensures counter is saved before power loss
+ */
+void vm_security_on_power_down(void);
+
+/**
  * Clear bonding data
  * Called on counter overflow or manual unbond
  * @return 0 on success

@@ -23,8 +23,9 @@ int vm_motor_init(void);
 /**
  * Set motor duty cycle
  * @param duty Duty cycle 0-255 (0% to 100%)
+ * @return 0 on success, negative on error
  */
-void vm_motor_set_duty(uint8_t duty);
+int vm_motor_set_duty(uint8_t duty);
 
 /**
  * Stop motor
