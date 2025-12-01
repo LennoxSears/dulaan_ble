@@ -7,6 +7,7 @@
 /* JieLi SDK includes */
 #include "le_gatt_common.h"
 #include "btstack/bluetooth.h"
+#include "btstack/btstack_typedef.h"
 
 /* Connection handle */
 static uint16_t vm_conn_handle = 0;
