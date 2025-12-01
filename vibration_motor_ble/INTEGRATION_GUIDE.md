@@ -20,8 +20,6 @@ CFLAGS += $(VM_BLE_INC)
 **Option B: Using Code::Blocks**
 Add these files to your `.cbp` project:
 - `vibration_motor_ble/vm_ble_service.c`
-- `vibration_motor_ble/vm_security.c`
-- `vibration_motor_ble/vm_storage.c`
 - `vibration_motor_ble/vm_motor_control.c`
 
 Add include directory:
@@ -58,46 +56,37 @@ void app_main(void)
 }
 ```
 
-### 5. Handle BLE Events
+### 5. Configure BLE Security
 
-See `vm_integration_example.c` for complete examples of:
-- Security callbacks (pairing, disconnection)
-- Connection callbacks (enforce Level 4 security)
-- Advertising setup (include service UUID)
+The BLE stack automatically handles all security. Just configure:
+
+```c
+static const sm_cfg_t sm_config = {
+    .slave_set_wait_security = 1,  /* Enforce encryption */
+    .io_capabilities = IO_CAPABILITY_NO_INPUT_NO_OUTPUT,  /* Just-Works */
+    .authentication_req_flags = SM_AUTHREQ_BONDING | SM_AUTHREQ_SECURE_CONNECTION,
+    .min_key_size = 16,
+    .max_key_size = 16,
+};
+```
+
+That's it! No application-layer security code needed.
 
 ## SDK-Specific Implementation
-
-You need to implement SDK-specific code in these locations:
 
 ### Priority 1: GATT Service Registration
 **File**: `vm_ble_service.c` → `vm_ble_service_init()`
 
 Find JieLi SDK examples for:
-- `le_gatt_server_add_service()`
-- `le_gatt_server_add_characteristic()`
+- `ble_gatt_server_set_profile()`
 - Write callback registration
 
-### Priority 2: Flash Storage
-**File**: `vm_storage.c` → All functions
-
-Find JieLi VM/NVS API:
-- `syscfg_write()` or equivalent
-- `syscfg_read()` or equivalent
-- `syscfg_remove()` or equivalent
-
-### Priority 3: Cryptography
-**File**: `vm_security.c` → `vm_aes_cmac_32()`
-
-Find JieLi crypto API:
-- AES-CMAC-128 function
-- May be in crypto toolbox (CONFIG_CRYPTO_TOOLBOX_OSIZE_IN_MASKROM)
-
-### Priority 4: PWM Control
+### Priority 2: PWM Control
 **File**: `vm_motor_control.c` → `vm_motor_init()` and `vm_motor_set_duty()`
 
 Find JieLi PWM API:
-- PWM initialization
-- Duty cycle control
+- `mcpwm_init()` - PWM initialization
+- `mcpwm_set_duty()` - Duty cycle control (0-10000)
 
 ## Testing Steps
 

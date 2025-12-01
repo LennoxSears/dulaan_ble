@@ -9,9 +9,10 @@
  * Service UUID: 9A501A2D-594F-4E2B-B123-5F739A2D594F
  * Characteristic UUID: 9A511A2D-594F-4E2B-B123-5F739A2D594F
  * Property: Write Without Response
+ * Packet Format: 2 bytes (duty_cycle: 0-10000)
+ * Security: LESC + Just-Works (enforced by stack)
  * 
  * Profile format based on SDK/apps/spp_and_le/examples/trans_data/ble_trans_profile.h
- * Generated using JieLi GATT Profile Generator tool
  */
 
 static const uint8_t vm_motor_profile_data[] = {

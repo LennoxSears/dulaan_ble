@@ -2,7 +2,7 @@
 #include "asm/mcpwm.h"
 #include "typedef.h"
 
-static uint8_t g_current_duty = 0;
+static uint16_t g_current_duty = 0;
 static pwm_ch_num_type g_pwm_channel = pwm_ch0;
 
 int vm_motor_init(void)
@@ -28,18 +28,19 @@ int vm_motor_init(void)
     return 0;
 }
 
-int vm_motor_set_duty(uint8_t duty)
+int vm_motor_set_duty(uint16_t duty_cycle)
 {
-    /* Convert 0-255 to 0-10000 (0% to 100% with 0.01% resolution) */
-    u16 duty_value = ((u32)duty * 10000) / 255;
+    /* Clamp to valid range */
+    if (duty_cycle > VM_MOTOR_DUTY_MAX) {
+        duty_cycle = VM_MOTOR_DUTY_MAX;
+    }
     
-    /* Set PWM duty cycle */
-    /* Note: mcpwm_set_duty returns void in SDK, so we can't check errors */
-    mcpwm_set_duty(g_pwm_channel, duty_value);
+    /* Set PWM duty cycle (0-10000 = 0.00%-100.00%) */
+    mcpwm_set_duty(g_pwm_channel, duty_cycle);
     
-    g_current_duty = duty;
+    g_current_duty = duty_cycle;
     
-    return 0;  /* Success */
+    return 0;
 }
 
 void vm_motor_stop(void)
@@ -47,7 +48,7 @@ void vm_motor_stop(void)
     vm_motor_set_duty(0);
 }
 
-uint8_t vm_motor_get_duty(void)
+uint16_t vm_motor_get_duty(void)
 {
     return g_current_duty;
 }

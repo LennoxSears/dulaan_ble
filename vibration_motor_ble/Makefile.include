@@ -4,8 +4,6 @@
 # Source files
 VM_BLE_SRCS := \
 	vibration_motor_ble/vm_ble_service.c \
-	vibration_motor_ble/vm_security.c \
-	vibration_motor_ble/vm_storage.c \
 	vibration_motor_ble/vm_motor_control.c
 
 # Include directory

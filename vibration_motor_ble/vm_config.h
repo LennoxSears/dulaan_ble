@@ -3,8 +3,9 @@
 
 /*
  * Vibration Motor BLE Protocol Configuration
+ * LESC + Just-Works - No application-layer security
  * 
- * Customize these settings for your hardware and requirements
+ * Customize these settings for your hardware
  */
 
 /* ========== Hardware Configuration ========== */
@@ -17,18 +18,6 @@
 /* PWM frequency in Hz */
 #ifndef VM_MOTOR_PWM_FREQ_HZ
 #define VM_MOTOR_PWM_FREQ_HZ    20000
-#endif
-
-/* ========== Security Configuration ========== */
-
-/* Flash write interval (packets) - balance between wear and safety */
-#ifndef VM_COUNTER_FLASH_INTERVAL
-#define VM_COUNTER_FLASH_INTERVAL   256
-#endif
-
-/* Maximum allowed counter jump (prevents overflow attacks) */
-#ifndef VM_COUNTER_MAX_DELTA
-#define VM_COUNTER_MAX_DELTA        (1ULL << 30)
 #endif
 
 /* ========== BLE Configuration ========== */
@@ -77,18 +66,6 @@
 #define VM_LOG(fmt, ...) printf("[VM_BLE] " fmt "\n", ##__VA_ARGS__)
 #else
 #define VM_LOG(fmt, ...)
-#endif
-
-/* ========== Feature Flags ========== */
-
-/* Enable counter overflow auto-disconnect */
-#ifndef VM_AUTO_DISCONNECT_ON_OVERFLOW
-#define VM_AUTO_DISCONNECT_ON_OVERFLOW  1
-#endif
-
-/* Enable motor safety timeout (auto-stop after N seconds) */
-#ifndef VM_MOTOR_SAFETY_TIMEOUT_MS
-#define VM_MOTOR_SAFETY_TIMEOUT_MS      0  /* 0 = disabled */
 #endif
 
 #endif /* VM_CONFIG_H */
