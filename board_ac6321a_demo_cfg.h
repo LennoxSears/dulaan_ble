@@ -7,7 +7,7 @@
 
 #define CONFIG_SDFILE_ENABLE
 
-///*********************************************************************************//
+//*********************************************************************************//
 //                                 配置开始                                        //
 //*********************************************************************************//
 #define ENABLE_THIS_MOUDLE					1
@@ -281,13 +281,11 @@
 //                                  系统配置                                         //
 //*********************************************************************************//
 #define TCFG_AUTO_SHUT_DOWN_TIME		          0   //没有蓝牙连接自动关机时间
-
 #if (TCFG_LOWPOWER_POWER_SEL == PWR_DCDC15)
 #define TCFG_SYS_LVD_EN						      1   //dcdc模式电压低于2.4v的时候切为LDO模式，需要开启电量检测
 #else
 #define TCFG_SYS_LVD_EN						      0   //电量检测使能
 #endif
-
 #define TCFG_POWER_ON_NEED_KEY				      0	  //是否需要按按键开机配置
 #define TCFG_HID_AUTO_SHUTDOWN_TIME              (0 * 60)      //HID无操作自动关机(单位：秒)
 
@@ -298,15 +296,14 @@
 #define TCFG_USER_BLE_ENABLE                      1   //BLE功能使能,---使能后,请配置TCFG_BLE_DEMO_SELECT选择DEMO例子
 #define TCFG_USER_EDR_ENABLE                      1   //EDR功能使能
 
-#if TCFG_USER_EDR_ENABLE
-#define USER_SUPPORT_PROFILE_SPP    0
+#define USER_SUPPORT_PROFILE_SPP    1
 #define USER_SUPPORT_PROFILE_HFP    0
 #define USER_SUPPORT_PROFILE_A2DP   0
 #define USER_SUPPORT_PROFILE_AVCTP  0
-#define USER_SUPPORT_PROFILE_HID    1
-#define USER_SUPPORT_PROFILE_PNP    1
+#define USER_SUPPORT_PROFILE_HID    0
+#define USER_SUPPORT_PROFILE_PNP    0
 #define USER_SUPPORT_PROFILE_PBAP   0
-#endif
+
 
 #if(TCFG_USER_TWS_ENABLE || TCFG_USER_BLE_ENABLE)
 #define TCFG_BD_NUM						          1   //连接设备个数配置
@@ -334,13 +331,6 @@
 
 #define CONFIG_BT_NORMAL_HZ	            (48 * 1000000L)
 //#define CONFIG_BT_CONNECT_HZ            (48 * 1000000L)
-
-//*********************************************************************************//
-//                                  从机启动配置                                     //
-//*********************************************************************************//
-#define TCFG_EX_MCU_ENABLE				DISABLE_THIS_MOUDLE
-#define TCFG_EX_MCU_PORT				IO_PORTA_05   //推送从机代码的IO口
-#define TCFG_EX_MCU_TRAN_BAUDRATE       1000000       //传输bin文件的波特率
 
 //*********************************************************************************//
 //                                 配置结束                                        //

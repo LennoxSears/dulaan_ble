@@ -26,16 +26,31 @@
 #define TCFG_UART0_TX_PORT  				IO_PORTA_00                            //串口发送脚配置
 #define TCFG_UART0_BAUDRATE  				1000000                                //串口波特率配置
 
+#define UART_DB_TX_PIN                      IO_PORTA_01                            //AT_CHART串口
+#define UART_DB_RX_PIN                      IO_PORTA_02
+#define UART_DB_RTS_PIN                     IO_PORTA_06
+#define UART_DB_CTS_PIN                     IO_PORTA_05
+
 //*********************************************************************************//
 //                                 USB 配置                                        //
 //*********************************************************************************//
-#define TCFG_PC_ENABLE						DISABLE_THIS_MOUDLE //PC模块使能
-#define TCFG_UDISK_ENABLE					DISABLE_THIS_MOUDLE //U盘模块使能
+#define TCFG_PC_ENABLE						DISABLE_THIS_MOUDLE//PC模块使能
+#define TCFG_UDISK_ENABLE					DISABLE_THIS_MOUDLE//U盘模块使能
 #define TCFG_HID_HOST_ENABLE                DISABLE_THIS_MOUDLE//ENABLE_THIS_MOUDLE  //游戏盒子模式
 #define TCFG_ADB_ENABLE                     DISABLE_THIS_MOUDLE//ENABLE_THIS_MOUDLE
 #define TCFG_AOA_ENABLE                     DISABLE_THIS_MOUDLE//ENABLE_THIS_MOUDLE
 
-#define TCFG_OTG_USB_DEV_EN                 (BIT(0) | BIT(1))//USB0 = BIT(0)  USB1 = BIT(1)
+#define TCFG_USB_SLAVE_USER_HID            1
+#define TCFG_OTG_USB_DEV_EN                0// (BIT(0) | BIT(1))//USB0 = BIT(0)  USB1 = BIT(1)
+
+
+#include "usb_std_class_def.h"
+
+///USB 配置重定义
+#undef USB_DEVICE_CLASS_CONFIG
+#define USB_DEVICE_CLASS_CONFIG 									(CDC_CLASS) // cdc虚拟串口功能 需先使能TCFG_PC_ENABLE
+
+
 //*********************************************************************************//
 //                                 IIC配置                                        //
 //*********************************************************************************//
@@ -182,21 +197,23 @@
 #define TCFG_AUDIO_ENABLE					DISABLE
 #if TCFG_AUDIO_ENABLE
 #define TCFG_DEC_USBC_ENABLE			    DISABLE
-#define TCFG_ENC_USBC_ENABLE              	DISABLE
 #define TCFG_DEC_MSBC_ENABLE                ENABLE  //MSBC 解码和 USBC 解码不能同时使能
+#define TCFG_ENC_USBC_ENABLE              	DISABLE
 #define TCFG_DEC_LC3_ENABLE              	DISABLE
 #define TCFG_ENC_LC3_ENABLE              	DISABLE
-#define TCFG_ENC_ADPCM_ENABLE               DISABLE
 #define TCFG_DEC_WAV_ENABLE                 DISABLE
 #define TCFG_DEC_WTGV2_ENABLE               DISABLE
+#define TCFG_ENC_ADPCM_ENABLE               DISABLE
 #define TCFG_DEC_OPUS_ENABLE                DISABLE
 #define TCFG_ENC_OPUS_ENABLE                DISABLE
+
 //lc3 参数配置
 #if (TCFG_ENC_LC3_ENABLE || TCFG_DEC_LC3_ENABLE)
 #define LC3_CODING_SAMPLERATE  16000 //lc3 编码的采样率
 #define LC3_CODING_FRAME_LEN   50  //帧长度，只支持25，50，100
 #define LC3_CODING_CHANNEL     1  //lc3 的通道数
 #endif
+
 #endif
 
 #endif
@@ -210,6 +227,7 @@
 //                             lp tocuh key 配置                                      //
 //*********************************************************************************//
 #define TCFG_LP_TOUCH_KEY_ENABLE 			DISABLE_THIS_MOUDLE 		//是否使能触摸按键
+
 
 //*********************************************************************************//
 //                              tocuh key 配置                                     //
@@ -340,12 +358,12 @@
 #define TCFG_USER_EDR_ENABLE                      1   //EDR功能使能
 
 #if TCFG_USER_EDR_ENABLE
-#define USER_SUPPORT_PROFILE_SPP    0
+#define USER_SUPPORT_PROFILE_SPP    1
 #define USER_SUPPORT_PROFILE_HFP    0
 #define USER_SUPPORT_PROFILE_A2DP   0
 #define USER_SUPPORT_PROFILE_AVCTP  0
-#define USER_SUPPORT_PROFILE_HID    1
-#define USER_SUPPORT_PROFILE_PNP    1
+#define USER_SUPPORT_PROFILE_HID    0
+#define USER_SUPPORT_PROFILE_PNP    0
 #define USER_SUPPORT_PROFILE_PBAP   0
 #define USER_SUPPORT_PROFILE_MAP    0//need enable hfp
 #endif
@@ -384,21 +402,6 @@
 //*********************************************************************************//
 //                                 配置结束                                        //
 //*********************************************************************************//
-
-#if TCFG_HID_HOST_ENABLE
-
-#undef TCFG_LOWPOWER_LOWPOWER_SEL
-#define TCFG_LOWPOWER_LOWPOWER_SEL			0
-
-#undef TCFG_LOWPOWER_VDDIOM_LEVEL
-#define TCFG_LOWPOWER_VDDIOM_LEVEL			VDDIOM_VOL_32V
-
-#undef TCFG_LOWPOWER_VDDIOW_LEVEL
-#define TCFG_LOWPOWER_VDDIOW_LEVEL			VDDIOW_VOL_32V
-
-#undef TCFG_USER_EDR_ENABLE
-#define     TCFG_USER_EDR_ENABLE    0
-#endif
 
 #endif
 

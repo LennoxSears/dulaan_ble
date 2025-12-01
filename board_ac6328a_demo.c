@@ -1,6 +1,6 @@
 #include "app_config.h"
 
-#ifdef CONFIG_BOARD_AC6321A_STAND_KEYBOARD
+#ifdef CONFIG_BOARD_AC6328A_DEMO
 
 #include "system/includes.h"
 #include "device/key_driver.h"
@@ -12,8 +12,6 @@
 #include "usb/otg.h"
 #include "norflash.h"
 #include "asm/power/p33.h"
-#include "ex_mcu_uart.h"
-#include "matrix_keyboard.h"
 
 #define LOG_TAG_CONST       BOARD
 #define LOG_TAG             "[BOARD]"
@@ -37,7 +35,6 @@ const struct low_power_param power_param = {
     .osc_type       = TCFG_LOWPOWER_OSC_TYPE,
     .lpctmu_en 		= TCFG_LP_TOUCH_KEY_ENABLE,
     .vd13_cap_en    = TCFG_VD13_CAP_EN,
-    .vddio_keep     = 0,
 };
 
 /************************** KEY MSG****************************/
@@ -69,7 +66,8 @@ CHARGE_PLATFORM_DATA_BEGIN(charge_data)
     .charge_full_mA			= TCFG_CHARGE_FULL_MA,             //充电截止电流
     .charge_mA				= TCFG_CHARGE_MA,                  //充电电流
 /*ldo5v拔出过滤值，过滤时间 = (filter*2 + 20)ms,ldoin<0.6V且时间大于过滤时间才认为拔出
- 对于充满直接从5V掉到0V的充电仓，该值必须设置成0，对于充满由5V先掉到0V之后再升压到xV的充电，需要根据实际情况设置该值大小*/
+ 对于充满直接从5V掉到0V的充电仓，该值必须设置成0，对于充满由5V先掉到0V之后再升压到xV的
+ 充电仓，需要根据实际情况设置该值大小*/
 	.ldo5v_off_filter		= 100,
     .ldo5v_on_filter        = 50,
     .ldo5v_keep_filter      = 220,
@@ -163,19 +161,6 @@ const struct key_remap_data iokey_remap_data = {
 
 #endif
 
-//按键键值配对表
-#if TCFG_MATRIX_KEY_ENABLE
-static u32 key_col[] = {0};
-static u32 key_row[] = {IO_PORTB_03, IO_PORT_DP1, IO_PORT_DM1, IO_PORTB_04, IO_PORTB_05, IO_PORTB_06, IO_PORTB_07, IO_PORTB_08};
-
-static matrix_key_param  matrix_param = {
-    .row_pin_list = key_row,
-    .col_pin_list = key_col,
-    .row_num = sizeof(key_row) / sizeof(u32),
-    .col_num = 16,
-};
-#endif
-
 #if TCFG_RTC_ALARM_ENABLE
 const struct sys_time def_sys_time = {  //初始一下当前时间
     .year = 2020,
@@ -240,15 +225,6 @@ struct otg_dev_data otg_data = {
 };
 #endif
 
-/**************************ex_mcu config****************************/
-#if TCFG_EX_MCU_ENABLE
-EX_MCU_PLATFORM_DATA_BEGIN(ex_mcu_data)
-    .io_port                = TCFG_EX_MCU_PORT,
-    .tran_baudrate          = TCFG_EX_MCU_TRAN_BAUDRATE,
-EX_MCU_PLATFORM_DATA_END()
-#endif
-
-
 REGISTER_DEVICES(device_table) = {
 #if TCFG_OTG_MODE
     { "otg",     &usb_dev_ops, (void *) &otg_data},
@@ -258,13 +234,6 @@ REGISTER_DEVICES(device_table) = {
 #endif
 
 };
-
-/**************************rtc_pr_out config*************************/
-int rtc_port_pr_out(u8 port, bool on)
-{
-    //bd19没有pr,但是app_stand_keyboard.c有调用,再次定义一个空函数以供兼容br23
-    return 0;
-}
 
 void debug_uart_init(const struct uart_platform_data *data)
 {
@@ -287,16 +256,6 @@ static void board_devices_init(void)
 	key_driver_init();
 #endif
 
-#if TCFG_EX_MCU_ENABLE
-	ucEx_mcu_init(&ex_mcu_data);
-	extern void Ex_mcu_uart_test(void);
-	Ex_mcu_uart_test();
-#endif
-
-#if TCFG_MATRIX_KEY_ENABLE
-    MATRIX_KEY_INIT(&matrix_param);
-#endif
-
 #if TCFG_CHARGE_ENABLE
     charge_api_init(&charge_data);
 #else
@@ -306,10 +265,6 @@ static void board_devices_init(void)
 
 #if TCFG_RTC_ALARM_ENABLE
     alarm_init(&rtc_data);
-#endif
-
-#if TCFG_TOUCHPAD_ENABLE
-    syd9557m_init(0);
 #endif
 
 }
@@ -340,8 +295,6 @@ static void mask_io_cfg()
 extern void cfg_file_parse(u8 idx);
 void board_init()
 {
-    EX_MCU_EXIT_POWERDOWN(TCFG_EX_WAKEUP_PORT);//尽早唤醒从机
-
 	board_power_init();
 	adc_vbg_init();
 	adc_init();
@@ -349,8 +302,6 @@ void board_init()
 	devices_init();
 
 	board_devices_init();
-
-    gpio_shortpress_reset_config(0);//失能短按复位
 
 	if(get_charge_online_flag()) {
 		power_set_mode(PWR_LDO15);
@@ -396,29 +347,6 @@ static void close_gpio(void)
 		port_protect(port_group, IO_PORTB_02);	//protect VCM_IO
 	}
 
-	if(P3_PINR_CON & BIT(0))
-	{
-		u8 port_sel = P3_PORT_SEL0;
-		if((port_sel >= 1) && (port_sel <= 10)){
-			port_sel = IO_GROUP_NUM * 0 + port_sel - 1;
-			port_protect(port_group, port_sel);				//protect 长按复位
-		}else if((port_sel >= 11) && (port_sel <= 20)){
-			port_sel = IO_GROUP_NUM * 1 + port_sel - 11;
-			port_protect(port_group, port_sel);				//protect 长按复位
-		}else if((port_sel >= 21) && (port_sel <= 25)){
-			port_sel = IO_GROUP_NUM * 2 + port_sel - 21;
-			port_protect(port_group, port_sel);				//protect 长按复位
-		}else if(port_sel == 26){
-			port_protect(port_group, IO_PORT_DP);			//protect 长按复位
-		}else if(port_sel == 27){
-			port_protect(port_group, IO_PORT_DM);			//protect 长按复位
-		}else if(port_sel == 28){
-			port_protect(port_group, IO_PORT_DP1);			//protect 长按复位
-		}else if(port_sel == 29){
-			port_protect(port_group, IO_PORT_DM1);			//protect 长按复位
-		}
-	}
-
 #if TCFG_ADKEY_ENABLE
     port_protect(port_group,TCFG_ADKEY_PORT);
 #endif /* */
@@ -428,17 +356,6 @@ static void close_gpio(void)
     port_protect(port_group, TCFG_IOKEY_PREV_ONE_PORT);
     port_protect(port_group, TCFG_IOKEY_NEXT_ONE_PORT);
 #endif /* TCFG_IOKEY_ENABLE */
-
-#if TCFG_MATRIX_KEY_ENABLE && TCFG_EX_MCU_ENABLE
-    port_protect(port_group,IO_PORT_DP1);
-    port_protect(port_group,IO_PORT_DM1);
-    port_protect(port_group,IO_PORTB_03);
-    port_protect(port_group,IO_PORTB_04);
-    port_protect(port_group,IO_PORTB_05);
-    port_protect(port_group,IO_PORTB_06);
-    port_protect(port_group,IO_PORTB_07);
-    port_protect(port_group,IO_PORTB_08);
-#endif
 
 #if TCFG_RTC_ALARM_ENABLE
     /* port_protect(port_group, IO_PORTA_01); */
@@ -472,19 +389,18 @@ static void close_gpio(void)
     gpio_set_die(IO_PORT_DM, 0);
     gpio_set_dieh(IO_PORT_DM, 0);
 
-    //由于使使DP1、DM1进行按键扫描并做唤醒引脚,这里不能close
-    /* usb1_iomode(1); */
-    /* gpio_set_pull_up(IO_PORT_DP1, 0); */
-    /* gpio_set_pull_down(IO_PORT_DP1, 0); */
-    /* gpio_set_direction(IO_PORT_DP1, 1); */
-    /* gpio_set_die(IO_PORT_DP1, 0); */
-    /* gpio_set_dieh(IO_PORT_DP1, 0); */
-    /*  */
-    /* gpio_set_pull_up(IO_PORT_DM1, 0); */
-    /* gpio_set_pull_down(IO_PORT_DM1, 0); */
-    /* gpio_set_direction(IO_PORT_DM1, 1); */
-    /* gpio_set_die(IO_PORT_DM1, 0); */
-    /* gpio_set_dieh(IO_PORT_DM1, 0); */
+    usb1_iomode(1);
+    gpio_set_pull_up(IO_PORT_DP1, 0);
+    gpio_set_pull_down(IO_PORT_DP1, 0);
+    gpio_set_direction(IO_PORT_DP1, 1);
+    gpio_set_die(IO_PORT_DP1, 0);
+    gpio_set_dieh(IO_PORT_DP1, 0);
+
+    gpio_set_pull_up(IO_PORT_DM1, 0);
+    gpio_set_pull_down(IO_PORT_DM1, 0);
+    gpio_set_direction(IO_PORT_DM1, 1);
+    gpio_set_die(IO_PORT_DM1, 0);
+    gpio_set_dieh(IO_PORT_DM1, 0);
 
     /* printf("JL_USB_IO->CON0=0x%x\r\n", JL_USB_IO->CON0); */
     /* printf("JL_USB_IO->CON1=0x%x\r\n", JL_USB_IO->CON1); */
@@ -500,65 +416,24 @@ struct port_wakeup port0 = {
 	.pullup_down_enable = ENABLE,                            //配置I/O 内部上下拉是否使能
 	.edge               = FALLING_EDGE,                      //唤醒方式选择,可选：上升沿\下降沿
     .both_edge          = 0,
-	.iomap              = IO_PORTB_03,                       //唤醒口选择
-    .filter             = 0,
+
+#if TCFG_ADKEY_ENABLE
+	.iomap              = TCFG_ADKEY_PORT,                   //唤醒口选择
+#else
+	.iomap              = TCFG_IOKEY_POWER_ONE_PORT,         //唤醒口选择
+#endif
+    .filter             = PORT_FLT_2ms,
 };
 
+#if TCFG_TEST_BOX_ENABLE
 struct port_wakeup port1 = {
-	.pullup_down_enable = ENABLE,                            //配置I/O 内部上下拉是否使能
-	.edge               = FALLING_EDGE,                      //唤醒方式选择,可选：上升沿\下降沿
-    .both_edge          = 0,
-	.iomap              = IO_PORT_DP1,                       //唤醒口选择
-    .filter             = 0,
+    .pullup_down_enable = DISABLE,                            //配置I/O 内部上下拉是否使能
+    .edge               = FALLING_EDGE,                      //唤醒方式选择,可选：上升沿\下降沿
+    .both_edge          = 1,
+    .filter             = PORT_FLT_1ms,
+    .iomap              = TCFG_CHARGESTORE_PORT,             //唤醒口选择
 };
-
-struct port_wakeup port2 = {
-	.pullup_down_enable = ENABLE,                            //配置I/O 内部上下拉是否使能
-	.edge               = FALLING_EDGE,                      //唤醒方式选择,可选：上升沿\下降沿
-    .both_edge          = 0,
-	.iomap              = IO_PORT_DM1,                       //唤醒口选择
-    .filter             = 0,
-};
-
-struct port_wakeup port3 = {
-	.pullup_down_enable = ENABLE,                            //配置I/O 内部上下拉是否使能
-	.edge               = FALLING_EDGE,                      //唤醒方式选择,可选：上升沿\下降沿
-    .both_edge          = 0,
-	.iomap              = IO_PORTB_04,                       //唤醒口选择
-    .filter             = 0,
-};
-
-struct port_wakeup port4 = {
-	.pullup_down_enable = ENABLE,                            //配置I/O 内部上下拉是否使能
-	.edge               = FALLING_EDGE,                      //唤醒方式选择,可选：上升沿\下降沿
-    .both_edge          = 0,
-	.iomap              = IO_PORTB_05,                       //唤醒口选择
-    .filter             = 0,
-};
-
-struct port_wakeup port5 = {
-	.pullup_down_enable = ENABLE,                            //配置I/O 内部上下拉是否使能
-	.edge               = FALLING_EDGE,                      //唤醒方式选择,可选：上升沿\下降沿
-    .both_edge          = 0,
-	.iomap              = IO_PORTB_06,                       //唤醒口选择
-    .filter             = 0,
-};
-
-struct port_wakeup port6 = {
-	.pullup_down_enable = ENABLE,                            //配置I/O 内部上下拉是否使能
-	.edge               = FALLING_EDGE,                      //唤醒方式选择,可选：上升沿\下降沿
-    .both_edge          = 0,
-	.iomap              = IO_PORTB_07,                       //唤醒口选择
-    .filter             = 0,
-};
-
-struct port_wakeup port7 = {
-	.pullup_down_enable = ENABLE,                            //配置I/O 内部上下拉是否使能
-	.edge               = FALLING_EDGE,                      //唤醒方式选择,可选：上升沿\下降沿
-    .both_edge          = 0,
-	.iomap              = IO_PORTB_08,                       //唤醒口选择
-    .filter             = 0,
-};
+#endif
 
 #if TCFG_CHARGE_ENABLE
 struct port_wakeup charge_port = {
@@ -584,19 +459,22 @@ struct port_wakeup ldoin_port = {
 #endif
 
 const struct wakeup_param wk_param = {
-	.port[0] = &port0,
-	.port[1] = &port1,
-	.port[2] = &port2,
-	.port[3] = &port3,
-	.port[4] = &port4,
-	.port[5] = &port5,
-	.port[6] = &port6,
-	.port[7] = &port7,
-#if TCFG_CHARGE_ENABLE
-	.aport[0] = &charge_port,
-	.aport[1] = &vbat_port,
-	.aport[2] = &ldoin_port,
+
+#if TCFG_ADKEY_ENABLE || TCFG_IOKEY_ENABLE
+	.port[1]    = &port0,
 #endif
+	/* .sub        = &sub_wkup, */
+	/* .charge     = &charge_wkup, */
+
+#if TCFG_TEST_BOX_ENABLE
+	.port[2] = &port1,
+#endif
+#if TCFG_CHARGE_ENABLE
+    .aport[0] = &charge_port,
+    .aport[1] = &vbat_port,
+    .aport[2] = &ldoin_port,
+#endif
+
 };
 
 //-----------------------------------------------
@@ -623,14 +501,7 @@ void board_set_soft_poweroff(void)
 void sleep_exit_callback(u32 usec)
 {
 	putchar('>');
-    EX_MCU_EXIT_POWERDOWN(TCFG_EX_WAKEUP_PORT);
     APP_IO_DEBUG_0(A, 5);
-}
-
-//取消hold方式检测按键,加快进入低功耗
-bool power_wakeup_is_hold(void)
-{
-	return FALSE;
 }
 
 void sleep_enter_callback(u8  step)
@@ -638,7 +509,6 @@ void sleep_enter_callback(u8  step)
 	/* 此函数禁止添加打印 */
 	if (step == 1) {
 		putchar('<');
-		EX_MCU_ENTER_POWERDOWN();
 		APP_IO_DEBUG_1(A, 5);
 		/*dac_power_off();*/
 	} else {
@@ -707,4 +577,3 @@ void board_power_init(void)
 /* #endif */
 }
 #endif
-

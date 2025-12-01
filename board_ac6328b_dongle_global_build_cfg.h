@@ -1,10 +1,10 @@
-#ifndef CONFIG_BOARD_AC6321A_MOUSE_POST_BUILD_CFG_H
-#define CONFIG_BOARD_AC6321A_MOUSE_POST_BUILD_CFG_H
+#ifndef CONFIG_BOARD_AC6328B_DONGLE_POST_BUILD_CFG_H
+#define CONFIG_BOARD_AC6328B_DONGLE_POST_BUILD_CFG_H
 
 /* 改文件只添加和isd_config.ini相关的配置，用以生成isd_config.ini */
 /* 其他不相关的配置请勿添加在改文件 */
 
-#ifdef CONFIG_BOARD_AC6321A_MOUSE
+#ifdef CONFIG_BOARD_AC6328B_DONGLE
 
 /* Following Macros Affect Periods Of Both Code Compiling And Post-build */
 
@@ -90,7 +90,7 @@
 //#define CONFIG_VDDIO_LVD_LEVEL                  4 ////VDDIO_LVD挡位，0: 1.55V   1: 1.70V   2: 1.85V   3: 2.00V   4: 2.15V   5: 2.30V   6: 2.45V   7: 2.60V
 
 //with single-bank mode,actual vm size should larger this VM_LEAST_SIZE,and dual bank mode,actual vm size equals this;
-#define CONFIG_VM_LEAST_SIZE                    8K
+#define CONFIG_VM_LEAST_SIZE                    32K
 //config whether erased this area when do a update,1-No Operation,0-Erase
 #define CONFIG_VM_OPT							1
 

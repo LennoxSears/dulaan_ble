@@ -1,17 +1,19 @@
 #include "app_config.h"
 
-#ifdef CONFIG_BOARD_AC6328A_KEYFOB
+#ifdef CONFIG_BOARD_AC6323A_FMY
 
 #include "system/includes.h"
 #include "device/key_driver.h"
 #include "asm/chargestore.h"
 #include "asm/charge.h"
+#include "asm/power/p33.h"
+#include "asm/iic_soft.h"
+#include "asm/iic_hw.h"
 #include "rtc_alarm.h"
 #include "asm/pwm_led.h"
 #include "user_cfg.h"
 #include "usb/otg.h"
 #include "norflash.h"
-#include "asm/power/p33.h"
 
 #define LOG_TAG_CONST       BOARD
 #define LOG_TAG             "[BOARD]"
@@ -21,6 +23,8 @@
 /* #define LOG_DUMP_ENABLE */
 #define LOG_CLI_ENABLE
 #include "debug.h"
+
+#define AT_UART_PORT_ID        3  // wakeup_param 里面的port id
 
 void board_power_init(void);
 
@@ -35,7 +39,16 @@ const struct low_power_param power_param = {
     .osc_type       = TCFG_LOWPOWER_OSC_TYPE,
     .lpctmu_en 		= TCFG_LP_TOUCH_KEY_ENABLE,
     .vd13_cap_en    = TCFG_VD13_CAP_EN,
+#if TCFG_RTC_ALARM_ENABLE
+    .rtc_clk        = 1,
+#endif
 };
+
+/************************** KEY MSG****************************/
+/*各个按键的消息设置，如果USER_CFG中设置了USE_CONFIG_KEY_SETTING为1，则会从配置文件读取对应的配置来填充改结构体*/
+/* u8 key_table[KEY_NUM_MAX][KEY_EVENT_MAX] = { */
+// SHORT           LONG              HOLD              UP              DOUBLE           TRIPLE
+/* }; */
 
 
 // *INDENT-OFF*
@@ -109,27 +122,62 @@ const struct adkey_platform_data adkey_data = {
 };
 #endif
 
+#if TCFG_IRKEY_ENABLE
+const struct irkey_platform_data irkey_data = {
+	    .enable = TCFG_IRKEY_ENABLE,                              //IR按键使能
+	    .port = TCFG_IRKEY_PORT,                                       //IR按键口
+};
+#endif
+
 /************************** IO KEY ****************************/
 #if TCFG_IOKEY_ENABLE
 const struct iokey_port iokey_list[] = {
+	{
+		.connect_way = TCFG_IOKEY_POWER_CONNECT_WAY,          //IO按键的连接方式
+		.key_type.one_io.port = TCFG_IOKEY_POWER_ONE_PORT,    //IO按键对应的引脚
+		.key_value = TCFG_IOKEY_POWER_ONE_PORT_VALUE,         //按键值
+	},
 
 	{
 		.connect_way = TCFG_IOKEY_PREV_CONNECT_WAY,
 		.key_type.one_io.port = TCFG_IOKEY_PREV_ONE_PORT,
-		.key_value = 1,
-	},
-{
-		.connect_way = TCFG_IOKEY_NEXT_CONNECT_WAY,
-		.key_type.one_io.port = TCFG_IOKEY_NEXT_ONE_PORT,
-		.key_value = 2,
+		.key_value = TCFG_IOKEY_PREV_ONE_PORT_VALUE,
 	},
 
+	{
+		.connect_way = TCFG_IOKEY_NEXT_CONNECT_WAY,
+		.key_type.one_io.port = TCFG_IOKEY_NEXT_ONE_PORT,
+		.key_value = TCFG_IOKEY_NEXT_ONE_PORT_VALUE,
+	},
 };
 const struct iokey_platform_data iokey_data = {
 	.enable = TCFG_IOKEY_ENABLE,                              //是否使能IO按键
 	.num = ARRAY_SIZE(iokey_list),                            //IO按键的个数
 	.port = iokey_list,                                       //IO按键参数表
 };
+
+#endif  /* #if TCFG_IO_KEY_ENABLE */
+
+/************************** TOUCH_KEY ****************************/
+#if TCFG_TOUCH_KEY_ENABLE
+const const struct touch_key_port touch_key_list[] = {
+    {
+	    .press_delta    = TCFG_TOUCH_KEY0_PRESS_DELTA,
+        .port           = TCFG_TOUCH_KEY0_PORT,
+        .key_value      = TCFG_TOUCH_KEY0_VALUE,
+    },
+    {
+	    .press_delta    = TCFG_TOUCH_KEY1_PRESS_DELTA,
+	    .port           = TCFG_TOUCH_KEY1_PORT,
+        .key_value      = TCFG_TOUCH_KEY1_VALUE,
+    },
+};
+
+const struct touch_key_platform_data touch_key_data = {
+    .num = ARRAY_SIZE(touch_key_list),
+    .port_list = touch_key_list,
+};
+#endif  /* #if TCFG_TOUCH_KEY_ENABLE */
 
 #if MULT_KEY_ENABLE
 //组合按键消息映射表
@@ -148,7 +196,6 @@ const struct key_remap_data iokey_remap_data = {
 };
 #endif
 
-#endif
 
 #if TCFG_RTC_ALARM_ENABLE
 const struct sys_time def_sys_time = {  //初始一下当前时间
@@ -172,8 +219,10 @@ extern void alarm_isr_user_cbfun(u8 index);
 RTC_DEV_PLATFORM_DATA_BEGIN(rtc_data)
     .default_sys_time = &def_sys_time,
     .default_alarm = &def_alarm,
-    /* .cbfun = NULL,                      //闹钟中断的回调函数,用户自行定义 */
-    .cbfun = alarm_isr_user_cbfun,
+    .cbfun = NULL,                      //闹钟中断的回调函数,用户自行定义
+    /* .cbfun = alarm_isr_user_cbfun, */
+    .clk_sel = CLK_SEL_LRC,
+    .trim_t = 1,                        //软关机情况下，1min唤醒一次trim lrc
 RTC_DEV_PLATFORM_DATA_END()
 #endif
 
@@ -183,6 +232,34 @@ LED_PLATFORM_DATA_BEGIN(pwm_led_data)
 	.io_mode = TCFG_PWMLED_IOMODE,              //推灯模式设置:支持单个IO推两个灯和两个IO推两个灯
 	.io_cfg.one_io.pin = TCFG_PWMLED_PIN,       //单个IO推两个灯的IO口配置
 LED_PLATFORM_DATA_END()
+#endif
+
+/************************** Gsensor  IIC Config ****************************/
+#if TCFG_GSENSOR_ENABLE
+#if !TCFG_GSENOR_USER_IIC_TYPE
+const struct soft_iic_config soft_iic_cfg[] = {
+    //iic0 data
+    {
+        .scl = TCFG_SW_I2C0_CLK_PORT,                    //IIC CLK脚
+        .sda = TCFG_SW_I2C0_DAT_PORT,                   //IIC DAT脚
+        .delay = 50,                        //软件IIC延时参数，影响通讯时钟频率
+        .io_pu = 1,                                     //是否打开上拉电阻，如果外部电路没有焊接上拉电阻需要置1
+    },
+};
+#else
+const struct hw_iic_config hw_iic_cfg[] = {
+    //iic0 data
+    {
+        //         SCL          SDA
+        .port = {IO_PORTA_07, IO_PORTA_08},
+        .baudrate = 100000,      //IIC通讯波特率
+        .hdrive = 0,             //是否打开IO口强驱
+        .io_filter = 1,          //是否打开滤波器（去纹波）
+        .io_pu = 1,              //是否打开上拉电阻，如果外部电路没有焊接上拉电阻需要置1
+        .role = IIC_MASTER,
+    },
+};
+#endif
 #endif
 
 /************************** norflash ****************************/
@@ -224,28 +301,6 @@ REGISTER_DEVICES(device_table) = {
 
 };
 
-int io_key_is_vaild()
-{
-	int value = 0;
-
-#if TCFG_IOKEY_ENABLE
-#if(!TCFG_UART0_ENABLE)
-	if(TCFG_IOKEY_PREV_CONNECT_WAY == gpio_read(TCFG_IOKEY_PREV_ONE_PORT)){
-		value |= BIT(0);
-		/* putchar('K'); */
-	}
-#endif
-
-	if(TCFG_IOKEY_NEXT_CONNECT_WAY == gpio_read(TCFG_IOKEY_NEXT_ONE_PORT)){
-		value |= BIT(1);
-		/* putchar('k'); */
-	}
-#endif
-
-	return value;
-
-
-}
 void debug_uart_init(const struct uart_platform_data *data)
 {
 #if TCFG_UART0_ENABLE
@@ -257,21 +312,46 @@ void debug_uart_init(const struct uart_platform_data *data)
 #endif
 }
 
+/*其他封装板级，移该函数*/
+u8 get_power_on_status(void)
+{
+#if TCFG_IOKEY_ENABLE
+    struct iokey_port *power_io_list = NULL;
+    power_io_list = iokey_data.port;
+
+    if (iokey_data.enable) {
+        if (gpio_read(power_io_list->key_type.one_io.port) == power_io_list->connect_way){
+            return 1;
+        }
+    }
+#endif
+
+#if TCFG_ADKEY_ENABLE
+    if (adkey_data.enable) {
+    	return 1;
+    }
+#endif
+
+#if TCFG_LP_TOUCH_KEY_ENABLE
+	return lp_touch_key_power_on_status();
+#endif
+
+    return 0;
+}
+
+
 static void board_devices_init(void)
 {
 #if TCFG_PWMLED_ENABLE
     pwm_led_init(&pwm_led_data);
 #endif
 
-#if (TCFG_IOKEY_ENABLE || TCFG_ADKEY_ENABLE || TCFG_TOUCH_KEY_ENABLE)
+#if (TCFG_IOKEY_ENABLE || TCFG_ADKEY_ENABLE || TCFG_IRKEY_ENABLE || TCFG_TOUCH_KEY_ENABLE)
 	key_driver_init();
 #endif
 
-#if TCFG_CHARGE_ENABLE
-    charge_api_init(&charge_data);
-#else
-    /* CHGBG_EN(0); */
-    /* CHARGE_EN(0); */
+#if (!TCFG_CHARGE_ENABLE)
+    CHARGE_EN(0);
 #endif
 
 #if TCFG_RTC_ALARM_ENABLE
@@ -314,6 +394,12 @@ void board_init()
 
 	board_devices_init();
 
+    #if TCFG_CHARGE_ENABLE && TCFG_HANDSHAKE_ENABLE
+    if(get_charge_online_flag()){
+        handshake_app_start(0, NULL);
+    }
+#endif
+
 	if(get_charge_online_flag()) {
 		power_set_mode(PWR_LDO15);
 	} else {
@@ -327,6 +413,18 @@ void board_init()
 	}
 #endif
 
+#if USER_UART_UPDATE_ENABLE
+        {
+#include "uart_update.h"
+            uart_update_cfg  update_cfg = {
+                .rx = UART_UPDATE_RX_PORT,
+                .tx = UART_UPDATE_TX_PORT,
+                .output_channel = CH1_UT1_TX,
+                .input_channel = INPUT_CH0
+            };
+            uart_update_init(&update_cfg);
+        }
+#endif
 }
 
 enum {
@@ -345,7 +443,7 @@ static void port_protect(u16 *port_group, u32 port_num)
 
 void usb1_iomode(u32 enable);
 /*进软关机之前默认将IO口都设置成高阻状态，需要保留原来状态的请修改该函数*/
-static void close_gpio(void)
+static void close_gpio(u8 is_softoff)
 {
     u16 port_group[] = {
         [PORTA_GROUP] = 0x1ff,
@@ -358,14 +456,77 @@ static void close_gpio(void)
 		port_protect(port_group, IO_PORTB_02);	//protect VCM_IO
 	}
 
+	if(P3_PINR_CON & BIT(0))
+	{
+		u8 port_sel = P3_PORT_SEL0;
+		if((port_sel >= 1) && (port_sel <= 10)){
+			port_sel = IO_GROUP_NUM * 0 + port_sel - 1;
+			port_protect(port_group, port_sel);				//protect 长按复位
+		}else if((port_sel >= 11) && (port_sel <= 20)){
+			port_sel = IO_GROUP_NUM * 1 + port_sel - 11;
+			port_protect(port_group, port_sel);				//protect 长按复位
+		}else if((port_sel >= 21) && (port_sel <= 25)){
+			port_sel = IO_GROUP_NUM * 2 + port_sel - 21;
+			port_protect(port_group, port_sel);				//protect 长按复位
+		}else if(port_sel == 26){
+			port_protect(port_group, IO_PORT_DP);			//protect 长按复位
+		}else if(port_sel == 27){
+			port_protect(port_group, IO_PORT_DM);			//protect 长按复位
+		}else if(port_sel == 28){
+			port_protect(port_group, IO_PORT_DP1);			//protect 长按复位
+		}else if(port_sel == 29){
+			port_protect(port_group, IO_PORT_DM1);			//protect 长按复位
+		}
+	}
+
+#if TCFG_ADKEY_ENABLE
+    port_protect(port_group,TCFG_ADKEY_PORT);
+#endif /* */
+
 #if TCFG_IOKEY_ENABLE
+    port_protect(port_group, TCFG_IOKEY_POWER_ONE_PORT);
     port_protect(port_group, TCFG_IOKEY_PREV_ONE_PORT);
     port_protect(port_group, TCFG_IOKEY_NEXT_ONE_PORT);
 #endif /* TCFG_IOKEY_ENABLE */
 
 #if TCFG_RTC_ALARM_ENABLE
-
+    /* port_protect(port_group, IO_PORTA_01); */
+    /* port_protect(port_group, IO_PORTA_02); */
 #endif /* TCFG_RTC_ALARM_ENABLE */
+
+#if TCFG_CHARGE_ENABLE && TCFG_HANDSHAKE_ENABLE
+    if (is_softoff == 0) {
+        port_protect(port_group, TCFG_HANDSHAKE_IO_DATA1);
+        port_protect(port_group, TCFG_HANDSHAKE_IO_DATA2);
+    }
+#endif
+
+    if (is_softoff == 0) {
+#ifdef SOUND_GPIO_PORT
+        port_protect(port_group, SOUND_GPIO_PORT);
+#endif
+#ifdef LED_PAIR_GAPIO_POR
+        port_protect(port_group, LED_PAIR_GAPIO_POR);
+#endif
+
+#ifdef LED_KEY_GAPIO_PORT
+        port_protect(port_group, LED_KEY_GAPIO_PORT);
+#endif
+#ifdef GSENSOR_POWER_IO
+        port_protect(port_group, GSENSOR_POWER_IO);
+#endif
+    }
+
+#if CONFIG_APP_AT_CHAR_COM || CONFIG_APP_AT_COM
+    port_protect(port_group, UART_DB_TX_PIN);
+    port_protect(port_group, UART_DB_RX_PIN);
+
+#if FLOW_CONTROL
+    port_protect(port_group, UART_DB_RTS_PIN);
+    port_protect(port_group, UART_DB_CTS_PIN);
+#endif
+
+#endif
 
     //< close gpio
     gpio_dir(GPIOA, 0, 9, port_group[PORTA_GROUP], GPIO_OR);
@@ -382,12 +543,18 @@ static void close_gpio(void)
 
     //< close usb io
     usb_iomode(1);
-    /* gpio_set_pull_up(IO_PORT_DP, 0); */
-    /* gpio_set_pull_down(IO_PORT_DP, 0); */
-    /* gpio_set_direction(IO_PORT_DP, 1); */
-    /* gpio_set_die(IO_PORT_DP, 0); */
-    /* gpio_set_dieh(IO_PORT_DP, 0); */
-    /*  */
+    gpio_set_pull_up(IO_PORT_DP, 0);
+    gpio_set_pull_down(IO_PORT_DP, 0);
+    gpio_set_direction(IO_PORT_DP, 1);
+    gpio_set_die(IO_PORT_DP, 0);
+    gpio_set_dieh(IO_PORT_DP, 0);
+
+    gpio_set_pull_up(IO_PORT_DM, 0);
+    gpio_set_pull_down(IO_PORT_DM, 0);
+    gpio_set_direction(IO_PORT_DM, 1);
+    gpio_set_die(IO_PORT_DM, 0);
+    gpio_set_dieh(IO_PORT_DM, 0);
+
     usb1_iomode(1);
     gpio_set_pull_up(IO_PORT_DP1, 0);
     gpio_set_pull_down(IO_PORT_DP1, 0);
@@ -401,6 +568,13 @@ static void close_gpio(void)
     gpio_set_die(IO_PORT_DM1, 0);
     gpio_set_dieh(IO_PORT_DM1, 0);
 
+    /* printf("JL_USB_IO->CON0=0x%x\r\n", JL_USB_IO->CON0); */
+    /* printf("JL_USB_IO->CON1=0x%x\r\n", JL_USB_IO->CON1); */
+    /* printf("JL_USB->CON0=0x%x\r\n", JL_USB->CON0); */
+    /*  */
+    /* printf("JL_USB1_IO->CON0=0x%x\r\n", JL_USB1_IO->CON0); */
+    /* printf("JL_USB1_IO->CON1=0x%x\r\n", JL_USB1_IO->CON1); */
+    /* printf("JL_USB1->CON0=0x%x\r\n", JL_USB1->CON0); */
 }
 
 /************************** PWR config ****************************/
@@ -408,24 +582,32 @@ struct port_wakeup port0 = {
 	.pullup_down_enable = ENABLE,                            //配置I/O 内部上下拉是否使能
 	.edge               = FALLING_EDGE,                      //唤醒方式选择,可选：上升沿\下降沿
     .both_edge          = 0,
-	.iomap              = TCFG_IOKEY_PREV_ONE_PORT,         //唤醒口选择
-    .filter             = PORT_FLT_2ms,
-};
-struct port_wakeup port1 = {
-	.pullup_down_enable = ENABLE,                            //配置I/O 内部上下拉是否使能
-	.edge               = FALLING_EDGE,                      //唤醒方式选择,可选：上升沿\下降沿
-    .both_edge          = 0,
-	.iomap              = TCFG_IOKEY_NEXT_ONE_PORT,         //唤醒口选择
+
+#if TCFG_ADKEY_ENABLE
+	.iomap              = TCFG_ADKEY_PORT,                   //唤醒口选择
+#else
+	.iomap              = TCFG_IOKEY_POWER_ONE_PORT,         //唤醒口选择
+#endif
     .filter             = PORT_FLT_2ms,
 };
 
 #if TCFG_TEST_BOX_ENABLE
-struct port_wakeup port2 = {
+struct port_wakeup port1 = {
     .pullup_down_enable = DISABLE,                            //配置I/O 内部上下拉是否使能
     .edge               = FALLING_EDGE,                      //唤醒方式选择,可选：上升沿\下降沿
     .both_edge          = 1,
     .filter             = PORT_FLT_1ms,
     .iomap              = TCFG_CHARGESTORE_PORT,             //唤醒口选择
+};
+#endif
+
+#if 0//USER_UART_UPDATE_ENABLE
+struct port_wakeup port1 = {
+	.pullup_down_enable = ENABLE,                            //配置I/O 内部上下拉是否使能
+	.edge               = FALLING_EDGE,                      //唤醒方式选择,可选：上升沿\下降沿
+    .both_edge          = 0,
+	.iomap              = UART_UPDATE_RX_PORT,               //唤醒口选择
+    .filter             = PORT_FLT_2ms,
 };
 #endif
 
@@ -452,16 +634,36 @@ struct port_wakeup ldoin_port = {
 };
 #endif
 
+struct port_wakeup at_uart_port = {
+	.pullup_down_enable = ENABLE,                            //配置I/O 内部上下拉是否使能
+	.edge               = FALLING_EDGE,                      //唤醒方式选择,可选：上升沿\下降沿
+    .both_edge          = 0,
+	.iomap              = UART_DB_RX_PIN,                   //唤醒口选择
+    .filter             = PORT_FLT_256us,
+};
+
+
 const struct wakeup_param wk_param = {
 
 #if TCFG_ADKEY_ENABLE || TCFG_IOKEY_ENABLE
 	.port[1]    = &port0,
-	.port[2]    = &port1,
 #endif
+	/* .sub        = &sub_wkup, */
+	/* .charge     = &charge_wkup, */
 
 #if TCFG_TEST_BOX_ENABLE
-	.port[3] = &port2,
+	.port[2] = &port1,
 #endif
+
+#if 0//USER_UART_UPDATE_ENABLE
+	.port[2] = &port1,
+#endif
+
+#if CONFIG_APP_AT_CHAR_COM || CONFIG_APP_AT_COM
+    /*at串口唤醒,至少要发多个00 hex数据,demo只做软关机唤醒*/
+    .port[AT_UART_PORT_ID] = &at_uart_port,
+#endif
+
 #if TCFG_CHARGE_ENABLE
     .aport[0] = &charge_port,
     .aport[1] = &vbat_port,
@@ -484,7 +686,11 @@ void board_set_soft_poweroff(void)
 	power_wakeup_index_disable(2);
 #endif
 
-	close_gpio();
+#if CONFIG_APP_AT_CHAR_COM || CONFIG_APP_AT_COM
+	power_wakeup_index_enable(AT_UART_PORT_ID);
+#endif
+
+	close_gpio(1);
 }
 
 #define     APP_IO_DEBUG_0(i,x)       //{JL_PORT##i->DIR &= ~BIT(x), JL_PORT##i->OUT &= ~BIT(x);}
@@ -505,7 +711,7 @@ void sleep_enter_callback(u8  step)
 		APP_IO_DEBUG_1(A, 5);
 		/*dac_power_off();*/
 	} else {
-		close_gpio();
+		close_gpio(0);
 	}
 }
 
@@ -513,6 +719,36 @@ static void wl_audio_clk_on(void)
 {
     JL_WL_AUD->CON0 = 1;
 }
+
+//-----------------------
+//system check go sleep is ok
+#if CONFIG_APP_AT_CHAR_COM || CONFIG_APP_AT_COM
+static u8 board_is_active;
+static u8 board_state_idle_query(void)
+{
+    return !board_is_active;
+}
+
+REGISTER_LP_TARGET(board_lp_target) = {
+    .name = "board_state",
+    .is_idle = board_state_idle_query,
+};
+
+static u8 board_time_to_idle(void)
+{
+    board_is_active = 0;
+}
+
+void board_at_uart_wakeup_enalbe(u8 enalbe)
+{
+    if(enalbe){
+        power_wakeup_index_enable(AT_UART_PORT_ID);
+    }
+    else{
+        power_wakeup_index_disable(AT_UART_PORT_ID);
+    }
+}
+#endif
 
 static void port_wakeup_callback(u8 index, u8 gpio)
 {
@@ -525,7 +761,20 @@ static void port_wakeup_callback(u8 index, u8 gpio)
 			chargestore_ldo5v_fall_deal();
 			break;
 #endif
-	}
+
+#if CONFIG_APP_AT_CHAR_COM || CONFIG_APP_AT_COM
+        case AT_UART_PORT_ID:
+            if(!board_is_active){
+                board_is_active = 1;
+                putchar('W');
+                sys_timeout_add(0,board_time_to_idle,10000);//delay 给uart 指令退出低功耗
+            }
+            break;
+#endif
+        default:
+            break;
+
+    }
 }
 
 static void aport_wakeup_callback(u8 index, u8 gpio, u8 edge)
@@ -549,9 +798,16 @@ void board_power_init(void)
 
     power_init(&power_param);
 
+    gpio_longpress_pin0_reset_config(IO_PORTA_09, 0, 0);
+    gpio_shortpress_reset_config(0);//1--enable 0--disable
+    //< close short key reset
+    /* power_mclr(0); */
+    //< close long key reset
+    /* power_pin_reset(0); */
 
     power_set_callback(TCFG_LOWPOWER_LOWPOWER_SEL, sleep_enter_callback, sleep_exit_callback, board_set_soft_poweroff);
 
+//    wl_audio_clk_on();
 
     power_keep_dacvdd_en(0);
 
@@ -560,9 +816,11 @@ void board_power_init(void)
     aport_edge_wkup_set_callback(aport_wakeup_callback);
     port_edge_wkup_set_callback(port_wakeup_callback);
 
+#if CONFIG_APP_AT_CHAR_COM || CONFIG_APP_AT_COM
+    power_wakeup_index_disable(AT_UART_PORT_ID);
+#endif
 	/* #if (!TCFG_IOKEY_ENABLE && !TCFG_ADKEY_ENABLE) */
     /* charge_check_and_set_pinr(0); */
 /* #endif */
 }
 #endif
-

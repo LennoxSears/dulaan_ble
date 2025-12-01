@@ -1,13 +1,13 @@
-#ifndef CONFIG_BOARD_AC6321A_STAND_KEYBOARD_H
-#define CONFIG_BOARD_AC6321A_STAND_KEYBOARD_H
+#ifndef CONFIG_BOARD_AC6328A_DEMO_H
+#define CONFIG_BOARD_AC6328A_DEMO_H
 
-#include "board_ac6321a_stand_keyboard_global_build_cfg.h"
+#include "board_ac6328a_demo_global_build_cfg.h"
 
-#ifdef CONFIG_BOARD_AC6321A_STAND_KEYBOARD
+#ifdef CONFIG_BOARD_AC6328A_DEMO
 
 #define CONFIG_SDFILE_ENABLE
 
-///*********************************************************************************//
+//*********************************************************************************//
 //                                 配置开始                                        //
 //*********************************************************************************//
 #define ENABLE_THIS_MOUDLE					1
@@ -35,14 +35,7 @@
 #define TCFG_ADB_ENABLE                     DISABLE_THIS_MOUDLE//ENABLE_THIS_MOUDLE
 #define TCFG_AOA_ENABLE                     DISABLE_THIS_MOUDLE//ENABLE_THIS_MOUDLE
 
-#define TCFG_USB_SLAVE_USER_HID            1
-#define TCFG_OTG_USB_DEV_EN                0// (BIT(0) | BIT(1))//USB0 = BIT(0)  USB1 = BIT(1)
-#include "usb_std_class_def.h"
-
-///USB 配置重定义
-#undef USB_DEVICE_CLASS_CONFIG
-#define USB_DEVICE_CLASS_CONFIG                   (HID_CLASS)
-
+#define TCFG_OTG_USB_DEV_EN                 (BIT(0) | BIT(1))//USB0 = BIT(0)  USB1 = BIT(1)
 //*********************************************************************************//
 //                                 IIC配置                                        //
 //*********************************************************************************//
@@ -114,15 +107,15 @@
 //*********************************************************************************//
 //                                 adkey 配置                                      //
 //*********************************************************************************//
-#define TCFG_ADKEY_ENABLE                   DISABLE_THIS_MOUDLE //是否使能AD按键
-#define TCFG_ADKEY_PORT                     IO_PORTB_01         //AD按键端口(需要注意选择的IO口是否支持AD功能)
+#define TCFG_ADKEY_ENABLE                   DISABLE_THIS_MOUDLE//ENABLE_THIS_MOUDLE //是否使能AD按键
+#define TCFG_ADKEY_PORT                     IO_PORT_DM         //AD按键端口(需要注意选择的IO口是否支持AD功能)
 /*AD通道选择，需要和AD按键的端口相对应:
     AD_CH_PA1    AD_CH_PA3    AD_CH_PA4    AD_CH_PA5
     AD_CH_PA9    AD_CH_PA1    AD_CH_PB1    AD_CH_PB4
     AD_CH_PB6    AD_CH_PB7    AD_CH_DP     AD_CH_DM
     AD_CH_PB2
 */
-#define TCFG_ADKEY_AD_CHANNEL               AD_CH_PB1
+#define TCFG_ADKEY_AD_CHANNEL               AD_CH_DM
 #define TCFG_ADKEY_EXTERN_UP_ENABLE         ENABLE_THIS_MOUDLE //是否使用外部上拉
 
 #if TCFG_ADKEY_EXTERN_UP_ENABLE
@@ -166,7 +159,6 @@
 #define TCFG_ADKEY_VALUE8                   8
 #define TCFG_ADKEY_VALUE9                   9
 
-
 //*********************************************************************************//
 //                                 Audio配置                                       //
 //*********************************************************************************//
@@ -189,16 +181,6 @@
 #endif
 
 #endif
-//*********************************************************************************//
-//                                 矩阵按键 配置                                      //
-//*********************************************************************************//
-#define TCFG_MATRIX_KEY_ENABLE              ENABLE_THIS_MOUDLE
-
-//*********************************************************************************//
-//                                 触摸板 配置                                      //
-//*********************************************************************************//
-#define TCFG_TOUCHPAD_ENABLE                DISABLE_THIS_MOUDLE
-
 //*********************************************************************************//
 //                                 irkey 配置                                      //
 //*********************************************************************************//
@@ -259,10 +241,7 @@
 //*********************************************************************************//
 #define TCFG_PWMLED_ENABLE					DISABLE_THIS_MOUDLE			//是否支持PMW LED推灯模块
 #define TCFG_PWMLED_IOMODE					LED_ONE_IO_MODE				//LED模式，单IO还是两个IO推灯
-#define TCFG_PWMLED_PIN						NO_CONFIG_PORT //IO_PORTB_00					//LED使用的IO口
-#define CAP_LED_PIN                         NO_CONFIG_PORT//IO_PORTB_01
-#define CONNECT_LED_PIN                     NO_CONFIG_PORT//IO_PORTB_02
-
+#define TCFG_PWMLED_PIN						IO_PORTB_06					//LED使用的IO口
 //*********************************************************************************//
 //                                  时钟配置                                       //
 //*********************************************************************************//
@@ -275,8 +254,8 @@
 //*********************************************************************************//
 //                                  低功耗配置                                     //
 //*********************************************************************************//
-#define TCFG_LOWPOWER_POWER_SEL				PWR_DCDC15
-// #define TCFG_LOWPOWER_POWER_SEL				PWR_LDO15                    //电源模式设置，可选DCDC和LDO
+//#define TCFG_LOWPOWER_POWER_SEL				PWR_DCDC15
+#define TCFG_LOWPOWER_POWER_SEL				PWR_LDO15                    //电源模式设置，可选DCDC和LDO
 #define TCFG_LOWPOWER_BTOSC_DISABLE			0                            //低功耗模式下BTOSC是否保持
 #define TCFG_LOWPOWER_LOWPOWER_SEL			SLEEP_EN                     //SNIFF状态下芯片是否进入powerdown
 /*强VDDIO等级配置,可选：
@@ -287,7 +266,7 @@
     VDDIOW_VOL_21V    VDDIOW_VOL_24V    VDDIOW_VOL_28V    VDDIOW_VOL_32V*/
 #define TCFG_LOWPOWER_VDDIOW_LEVEL			VDDIOW_VOL_28V               //弱VDDIO等级配置
 #define TCFG_LOWPOWER_OSC_TYPE              OSC_TYPE_LRC
-#define TCFG_VD13_CAP_EN				    1
+#define TCFG_VD13_CAP_EN					0							//外部无接电容不要使能，否则跑挂!
 
 //*********************************************************************************//
 //                                  g-sensor配置                                   //
@@ -305,27 +284,26 @@
 #if (TCFG_LOWPOWER_POWER_SEL == PWR_DCDC15)
 #define TCFG_SYS_LVD_EN						      1   //dcdc模式电压低于2.4v的时候切为LDO模式，需要开启电量检测
 #else
-#define TCFG_SYS_LVD_EN						      1   //电量检测使能
+#define TCFG_SYS_LVD_EN						      0   //电量检测使能
 #endif
 #define TCFG_POWER_ON_NEED_KEY				      0	  //是否需要按按键开机配置
-#define TCFG_HID_AUTO_SHUTDOWN_TIME              (1 * 60)      //HID无操作自动关机(单位：秒)
+#define TCFG_HID_AUTO_SHUTDOWN_TIME              (0 * 60)      //HID无操作自动关机(单位：秒)
 
 //*********************************************************************************//
 //                                  蓝牙配置                                       //
 //*********************************************************************************//
 #define TCFG_USER_TWS_ENABLE                      0   //tws功能使能
 #define TCFG_USER_BLE_ENABLE                      1   //BLE功能使能,---使能后,请配置TCFG_BLE_DEMO_SELECT选择DEMO例子
-#define TCFG_USER_EDR_ENABLE                      0   //EDR功能使能
+#define TCFG_USER_EDR_ENABLE                      1   //EDR功能使能
 
-#if TCFG_USER_EDR_ENABLE
-#define USER_SUPPORT_PROFILE_SPP    0
+#define USER_SUPPORT_PROFILE_SPP    1
 #define USER_SUPPORT_PROFILE_HFP    0
 #define USER_SUPPORT_PROFILE_A2DP   0
 #define USER_SUPPORT_PROFILE_AVCTP  0
-#define USER_SUPPORT_PROFILE_HID    1
-#define USER_SUPPORT_PROFILE_PNP    1
+#define USER_SUPPORT_PROFILE_HID    0
+#define USER_SUPPORT_PROFILE_PNP    0
 #define USER_SUPPORT_PROFILE_PBAP   0
-#endif
+
 
 #if(TCFG_USER_TWS_ENABLE || TCFG_USER_BLE_ENABLE)
 #define TCFG_BD_NUM						          1   //连接设备个数配置
@@ -355,19 +333,9 @@
 //#define CONFIG_BT_CONNECT_HZ            (48 * 1000000L)
 
 //*********************************************************************************//
-//                                  从机启动配置                                     //
-//*********************************************************************************//
-#define TCFG_EX_MCU_ENABLE				ENABLE_THIS_MOUDLE
-#define TCFG_EX_MCU_PORT				IO_PORTA_05   //推送从机代码的IO口
-#define TCFG_EX_WAKEUP_PORT             IO_PORTA_04   //从机低功耗唤醒IO
-#define TCFG_EX_RESET_PORT              IO_PORTA_00   //复位从机IO
-#define TCFG_EX_MCU_TRAN_BAUDRATE       1000000       //传输bin文件的波特率
-
-//*********************************************************************************//
 //                                 配置结束                                        //
 //*********************************************************************************//
 
 #endif
 
 #endif
-

@@ -1,9 +1,9 @@
-#ifndef CONFIG_BOARD_AC6321A_MOUSE_H
-#define CONFIG_BOARD_AC6321A_MOUSE_H
+#ifndef CONFIG_BOARD_AC6323A_FMY_H
+#define CONFIG_BOARD_AC6323A_FMY_H
 
-#include "board_ac6321a_mouse_global_build_cfg.h"
+#include "board_ac6323a_fmy_global_build_cfg.h"
 
-#ifdef CONFIG_BOARD_AC6321A_MOUSE
+#ifdef CONFIG_BOARD_AC6323A_FMY
 
 #define CONFIG_SDFILE_ENABLE
 
@@ -23,25 +23,53 @@
 //*********************************************************************************//
 #define TCFG_UART0_ENABLE					ENABLE_THIS_MOUDLE                     //串口打印模块使能
 #define TCFG_UART0_RX_PORT					NO_CONFIG_PORT                         //串口接收脚配置（用于打印可以选择NO_CONFIG_PORT）
-#define TCFG_UART0_TX_PORT  				IO_PORT_DM                            //串口发送脚配置
+#define TCFG_UART0_TX_PORT  				IO_PORTB_04                            //串口发送脚配置
 #define TCFG_UART0_BAUDRATE  				1000000                                //串口波特率配置
+
+#define UART_DB_TX_PIN                      IO_PORTA_03                            //AT_CHART串口
+#define UART_DB_RX_PIN                      IO_PORTA_04
+#define UART_DB_RTS_PIN                     IO_PORTA_06
+#define UART_DB_CTS_PIN                     IO_PORTA_05
+
+//*********************************************************************************//
+//                                 fmy                                        //
+//*********************************************************************************//
+#define  SOUND_GPIO_PORT                    IO_PORTA_00
+#define  SOUND_PASSIVE_BUZZER               ENABLE_THIS_MOUDLE                      // 是否采用无源蜂鸣器-PWM推声
+
+#if SOUND_PASSIVE_BUZZER
+#define DEV_SOUND_PWM_CH                    pwm_ch0                                 //选择PWM输出通道
+#endif
+
+//#define  LED_KEY_GAPIO_PORT                 IO_PORTA_07
+#define  LED_PAIR_GAPIO_POR                IO_PORTA_01
 
 //*********************************************************************************//
 //                                 USB 配置                                        //
 //*********************************************************************************//
-#define TCFG_PC_ENABLE						DISABLE_THIS_MOUDLE //PC模块使能
-#define TCFG_UDISK_ENABLE					DISABLE_THIS_MOUDLE //U盘模块使能
+#define TCFG_PC_ENABLE						DISABLE_THIS_MOUDLE//PC模块使能
+#define TCFG_UDISK_ENABLE					DISABLE_THIS_MOUDLE//U盘模块使能
 #define TCFG_HID_HOST_ENABLE                DISABLE_THIS_MOUDLE//ENABLE_THIS_MOUDLE  //游戏盒子模式
 #define TCFG_ADB_ENABLE                     DISABLE_THIS_MOUDLE//ENABLE_THIS_MOUDLE
 #define TCFG_AOA_ENABLE                     DISABLE_THIS_MOUDLE//ENABLE_THIS_MOUDLE
 
-#define TCFG_OTG_USB_DEV_EN                 (BIT(0) | BIT(1))//USB0 = BIT(0)  USB1 = BIT(1)
+#define TCFG_USB_SLAVE_USER_HID            1
+#define TCFG_OTG_USB_DEV_EN                0// (BIT(0) | BIT(1))//USB0 = BIT(0)  USB1 = BIT(1)
+
+
+#include "usb_std_class_def.h"
+
+///USB 配置重定义
+#undef USB_DEVICE_CLASS_CONFIG
+#define USB_DEVICE_CLASS_CONFIG 									(CDC_CLASS) // cdc虚拟串口功能 需先使能TCFG_PC_ENABLE
+
+
 //*********************************************************************************//
 //                                 IIC配置                                        //
 //*********************************************************************************//
 /*软件IIC设置*/
-#define TCFG_SW_I2C0_CLK_PORT               IO_PORTA_09                             //软件IIC  CLK脚选择
-#define TCFG_SW_I2C0_DAT_PORT               IO_PORTA_10                             //软件IIC  DAT脚选择
+#define TCFG_SW_I2C0_CLK_PORT               IO_PORTB_06                             //软件IIC  CLK脚选择
+#define TCFG_SW_I2C0_DAT_PORT               IO_PORTB_07                             //软件IIC  DAT脚选择
 #define TCFG_SW_I2C0_DELAY_CNT              50                                      //IIC延时参数，影响通讯时钟频率
 
 /*硬件IIC端口选择
@@ -88,67 +116,50 @@
 #define KEY_NUM_MAX                        	10
 #define KEY_NUM                            	3
 
-#define MULT_KEY_ENABLE						ENABLE 		//是否使能组合按键消息, 使能后需要配置组合按键映射表
+#define MULT_KEY_ENABLE						DISABLE 		//是否使能组合按键消息, 使能后需要配置组合按键映射表
+
+//*********************************************************************************//
+//                         softoff wakeup key_driver 配置                          //
+//*********************************************************************************//
+#define TCFG_SOFTOFF_WAKEUP_KEY_DRIVER_ENABLE       DISABLE_THIS_MOUDLE  //软关机唤醒按键不丢键使能, 目前只支持IOKEY
+
+//请根据board.c中的wakeup_param列表填写
+#define TCFG_WAKEUP_PORT_POWER_SRC          BIT(1)  //唤醒口port[1]
+#define TCFG_WAKEUP_PORT_PREV_SRC           BIT(2)  //唤醒口port[2]
+#define TCFG_WAKEUP_PORT_NEXT_SRC           BIT(3)  //唤醒口port[3]
+
+#define TCFG_LONGKEY_SUPPLEMENT_TIME        15  //长按补充时间,请根据实际测量(power_on——key_init)时间填写 15*10ms(scan_time)=150ms
+
 //*********************************************************************************//
 //                                 iokey 配置                                      //
 //*********************************************************************************//
-#define MOUSE_KEY_SCAN_MODE                 ENABLE_THIS_MOUDLE
-#define TCFG_IOKEY_ENABLE					ENABLE_THIS_MOUDLE //是否使能IO按键
+#define TCFG_IOKEY_ENABLE					DISABLE_THIS_MOUDLE //是否使能IO按键
 
 #define TCFG_IOKEY_POWER_CONNECT_WAY		ONE_PORT_TO_LOW    //按键一端接低电平一端接IO
-//#define TCFG_IOKEY_POWER_ONE_PORT			IO_PORTB_02        //IO按键端口
-#define KEY_LK_VAL          BIT(0)   //1
-#define KEY_RK_VAL          BIT(1)   //2
-#define KEY_HK_VAL          BIT(2)   //4
-#define KEY_FB_VAL          BIT(3)   //8
-#define KEY_BB_VAL          BIT(4)  //16
-#define KEY_CPI_VAL         BIT(5)  //32
 
-#define KEY_LK_RK_VAL       (KEY_LK_VAL | KEY_RK_VAL)//3
-#define KEY_LK_HK_VAL       (KEY_LK_VAL | KEY_HK_VAL)//5
-#define KEY_RK_HK_VAL       (KEY_RK_VAL | KEY_HK_VAL)//6
-#define KEY_LK_RK_HK_VAL    (KEY_LK_VAL | KEY_RK_VAL | KEY_HK_VAL)//7
+#define TCFG_IOKEY_POWER_ONE_PORT			IO_PORTB_01        //IO按键端口
+#define TCFG_IOKEY_POWER_ONE_PORT_VALUE		0x1                //power port键值，不能设为0,key_value初始化为0,会误推keep事件
 
-/*
-#define KEY_LK_VAL          BIT(0)
-#define KEY_RK_VAL          BIT(1)
-#define KEY_HK_VAL          BIT(2)
-#define KEY_LK_RK_VAL       BIT(0) | BIT(1)
-#define KEY_LK_HK_VAL       BIT(0) | BIT(2)
-#define KEY_RK_HK_VAL       BIT(1) | BIT(2)
-#define KEY_LK_RK_HK_VAL    BIT(0) |BIT(1) | BIT(2)
-*/
-#define TCFG_IOKEY_MOUSE_LK_PORT		            IO_PORTA_01
-#define TCFG_IOKEY_MOUSE_RK_PORT		            IO_PORTA_02
-#define TCFG_IOKEY_MOUSE_HK_PORT		            IO_PORTA_00
-#define TCFG_IOKEY_MOUSE_MK_IN_PORT		            NO_CONFIG_PORT
-#define TCFG_IOKEY_MOUSE_MK_OUT_PORT		        NO_CONFIG_PORT
+#define TCFG_IOKEY_PREV_CONNECT_WAY			ONE_PORT_TO_LOW  //按键一端接低电平一端接IO
+#define TCFG_IOKEY_PREV_ONE_PORT			IO_PORTB_00
+#define TCFG_IOKEY_PREV_ONE_PORT_VALUE		0x2              //prev port键值
 
-// #define TCFG_IOKEY_MOUSE_FB_PORT		            -1
-// #define TCFG_IOKEY_MOUSE_BB_PORT		            -1
-// #define TCFG_IOKEY_MOUSE_CPI_PORT                   -1
-//
-// #define TCFG_IOKEY_MOUSE_24GLED_PORT                -1
-// #define TCFG_IOKEY_MOUSE_BLELED_PORT                NO_CONFIG_PORT
-// #define TCFG_IOKEY_MOUSE_EDRLED_PORT                -1
-//
-// #define TCFG_IOKEY_MOUSE_MODE_PORT                  -1
-//
-// #define TCFG_IOKEY_MOUSE_VBATP_PORT                 -1
-// #define TCFG_IOKEY_MOUSE_VBATP_ADC_CHANNEL          AD_CH_PB5
+#define TCFG_IOKEY_NEXT_CONNECT_WAY 		ONE_PORT_TO_LOW  //按键一端接低电平一端接IO
+#define TCFG_IOKEY_NEXT_ONE_PORT			IO_PORTB_02
+#define TCFG_IOKEY_NEXT_ONE_PORT_VALUE		0x3              //next port键值
 
 //*********************************************************************************//
 //                                 adkey 配置                                      //
 //*********************************************************************************//
-#define TCFG_ADKEY_ENABLE                   DISABLE_THIS_MOUDLE //是否使能AD按键
-#define TCFG_ADKEY_PORT                     IO_PORTB_01         //AD按键端口(需要注意选择的IO口是否支持AD功能)
+#define TCFG_ADKEY_ENABLE                   ENABLE_THIS_MOUDLE //是否使能AD按键
+#define TCFG_ADKEY_PORT                     IO_PORTA_09 //AD按键端口(需要注意选择的IO口是否支持AD功能)
 /*AD通道选择，需要和AD按键的端口相对应:
     AD_CH_PA1    AD_CH_PA3    AD_CH_PA4    AD_CH_PA5
     AD_CH_PA9    AD_CH_PA1    AD_CH_PB1    AD_CH_PB4
     AD_CH_PB6    AD_CH_PB7    AD_CH_DP     AD_CH_DM
     AD_CH_PB2
 */
-#define TCFG_ADKEY_AD_CHANNEL               AD_CH_PB1
+#define TCFG_ADKEY_AD_CHANNEL               AD_CH_PA9
 #define TCFG_ADKEY_EXTERN_UP_ENABLE         ENABLE_THIS_MOUDLE //是否使用外部上拉
 
 #if TCFG_ADKEY_EXTERN_UP_ENABLE
@@ -199,10 +210,15 @@
 #define TCFG_AUDIO_ENABLE					DISABLE
 #if TCFG_AUDIO_ENABLE
 #define TCFG_DEC_USBC_ENABLE			    DISABLE
+#define TCFG_DEC_MSBC_ENABLE                ENABLE  //MSBC 解码和 USBC 解码不能同时使能
 #define TCFG_ENC_USBC_ENABLE              	DISABLE
 #define TCFG_DEC_LC3_ENABLE              	DISABLE
 #define TCFG_ENC_LC3_ENABLE              	DISABLE
-
+#define TCFG_DEC_WAV_ENABLE                 DISABLE
+#define TCFG_DEC_WTGV2_ENABLE               DISABLE
+#define TCFG_ENC_ADPCM_ENABLE               DISABLE
+#define TCFG_DEC_OPUS_ENABLE                DISABLE
+#define TCFG_ENC_OPUS_ENABLE                DISABLE
 
 //lc3 参数配置
 #if (TCFG_ENC_LC3_ENABLE || TCFG_DEC_LC3_ENABLE)
@@ -221,9 +237,23 @@
 #define TCFG_IRKEY_PORT                     IO_PORTA_08        //IR按键端口
 
 //*********************************************************************************//
-//                             tocuh key 配置                                      //
+//                             lp tocuh key 配置                                      //
 //*********************************************************************************//
 #define TCFG_LP_TOUCH_KEY_ENABLE 			DISABLE_THIS_MOUDLE 		//是否使能触摸按键
+
+
+//*********************************************************************************//
+//                              tocuh key 配置                                     //
+//*********************************************************************************//
+#define TCFG_TOUCH_KEY_ENABLE               DISABLE_THIS_MOUDLE             //是否使能plcnt触摸按键
+//key0配置
+#define TCFG_TOUCH_KEY0_PRESS_DELTA	   	    100//变化阈值，当触摸产生的变化量达到该阈值，则判断被按下，每个按键可能不一样，可先在驱动里加到打印，再反估阈值
+#define TCFG_TOUCH_KEY0_PORT 				IO_PORTB_06 //触摸按键key0 IO配置
+#define TCFG_TOUCH_KEY0_VALUE 				0x12 		//触摸按键key0 按键值
+//key1配置
+#define TCFG_TOUCH_KEY1_PRESS_DELTA	   	    100//变化阈值，当触摸产生的变化量达到该阈值，则判断被按下，每个按键可能不一样，可先在驱动里加到打印，再反估阈值
+#define TCFG_TOUCH_KEY1_PORT 				IO_PORTB_07 //触摸按键key1 IO配置
+#define TCFG_TOUCH_KEY1_VALUE 				0x34        //触摸按键key1 按键值
 
 //*********************************************************************************//
 //                                  RTC_ALARM配置                                  //
@@ -246,6 +276,10 @@
 #define TCFG_CHARGE_POWERON_ENABLE			DISABLE
 //是否支持拔出充电自动开机功能
 #define TCFG_CHARGE_OFF_POWERON_NE			DISABLE
+//是否支持lighting握手协议
+#define TCFG_HANDSHAKE_ENABLE               DISABLE
+#define TCFG_HANDSHAKE_IO_DATA1             IO_PORTB_02//握手IO靠近lighting座子中间的
+#define TCFG_HANDSHAKE_IO_DATA2             IO_PORTB_07//握手IO在lighting座子边上的
 /*
 充电截止电压可选配置：
     CHARGE_FULL_V_3962  CHARGE_FULL_V_4002  CHARGE_FULL_V_4044  CHARGE_FULL_V_4086
@@ -275,49 +309,26 @@
 #define TCFG_PWMLED_ENABLE					DISABLE_THIS_MOUDLE			//是否支持PMW LED推灯模块
 #define TCFG_PWMLED_IOMODE					LED_ONE_IO_MODE				//LED模式，单IO还是两个IO推灯
 #define TCFG_PWMLED_PIN						IO_PORTB_06					//LED使用的IO口
+
 //*********************************************************************************//
 //                                  时钟配置                                       //
 //*********************************************************************************//
-#define TCFG_CLOCK_SYS_SRC					SYS_CLOCK_INPUT_PLL_BT_OSC   //系统时钟源选择
+#if CONFIG_PLL_SOURCE_USING_LRC
+#define TCFG_CLOCK_SYS_SRC     SYS_CLOCK_INPUT_PLL_RCL   //系统时钟源选择
+#else
+#define TCFG_CLOCK_SYS_SRC     SYS_CLOCK_INPUT_PLL_BT_OSC   //系统时钟源选择
+#endif
+
 #define TCFG_CLOCK_SYS_HZ					24000000                     //系统时钟设置
 #define TCFG_CLOCK_OSC_HZ					24000000                     //外界晶振频率设置
 /* #define TCFG_CLOCK_MODE                     CLOCK_MODE_USR//CLOCK_MODE_ADAPTIVE */
 #define TCFG_CLOCK_MODE                     CLOCK_MODE_ADAPTIVE
 
-
-
-//*********************************************************************************//
-//                                  optical mouse sensor配置                       //
-//*********************************************************************************//
-#define TCFG_OMSENSOR_ENABLE                      ENABLE_THIS_MOUDLE
-#define TCFG_HAL3205_EN                           TCFG_OMSENSOR_ENABLE  //同时配置OMSensor_config.h中的配置项
-// #define TCFG_HAL3212_EN                           TCFG_OMSENSOR_ENABLE
-#define TCFG_OPTICAL_SENSOR_SCLK_PORT             IO_PORTA_07
-#define TCFG_OPTICAL_SENSOR_DATA_PORT             IO_PORTA_08
-#define TCFG_OPTICAL_SENSOR_INT_PORT              IO_PORTB_06
-
-#define OPTICAL_SENSOR_SAMPLE_PERIOD     6 //ms
-
-
-//*********************************************************************************//
-//                                  code switch配置                                //
-//*********************************************************************************//
-#define TCFG_CODE_SWITCH_ENABLE                   ENABLE_THIS_MOUDLE
-#define TCFG_CODE_SWITCH_A_PHASE_PORT             IO_PORTB_04
-#define TCFG_CODE_SWITCH_B_PHASE_PORT             IO_PORTB_05
-
-
-//*********************************************************************************//
-//                                  MOUSE_MODE配置                                 //
-//*********************************************************************************//
-#define BLE_MODE    1
-#define EDR_MODE    1
-#define TCFG_MOUSE_MODE  BLE_MODE
 //*********************************************************************************//
 //                                  低功耗配置                                     //
 //*********************************************************************************//
-#define TCFG_LOWPOWER_POWER_SEL				PWR_DCDC15
-// #define TCFG_LOWPOWER_POWER_SEL				PWR_LDO15                    //电源模式设置，可选DCDC和LDO
+//#define TCFG_LOWPOWER_POWER_SEL				PWR_DCDC15
+#define TCFG_LOWPOWER_POWER_SEL				PWR_DCDC15                    //电源模式设置，可选DCDC和LDO
 #define TCFG_LOWPOWER_BTOSC_DISABLE			0                            //低功耗模式下BTOSC是否保持
 #define TCFG_LOWPOWER_LOWPOWER_SEL			SLEEP_EN                     //SNIFF状态下芯片是否进入powerdown
 /*强VDDIO等级配置,可选：
@@ -328,43 +339,48 @@
     VDDIOW_VOL_21V    VDDIOW_VOL_24V    VDDIOW_VOL_28V    VDDIOW_VOL_32V*/
 #define TCFG_LOWPOWER_VDDIOW_LEVEL			VDDIOW_VOL_28V               //弱VDDIO等级配置
 #define TCFG_LOWPOWER_OSC_TYPE              OSC_TYPE_LRC
-#define TCFG_VD13_CAP_EN					1
+#define TCFG_VD13_CAP_EN					0 //有BT_AVDD引脚，需要配置1
+
 
 //*********************************************************************************//
 //                                  g-sensor配置                                   //
 //*********************************************************************************//
-#define TCFG_GSENSOR_ENABLE                       0     //gSensor使能
-#define TCFG_DA230_EN                             0
-#define TCFG_SC7A20_EN                            0
-#define TCFG_STK8321_EN                           0
-#define TCFG_GSENOR_USER_IIC_TYPE                 0     //0:软件IIC  1:硬件IIC
+#define TCFG_GSENSOR_ENABLE                       1     //gSensor使能
+// 选择findmy产品使用的加速度传感器，需有且只选一款
+#define TCFG_SC7A20_EN                            1
+#define TCFG_SC7A20_E_EN                          0
+#define TCFG_MSA310_EN                            0
+
+#define GSENSOR_POWER_IO                          IO_PORTA_07 // gsensor是否采用IO口供电，如不采用IO口供电，需注释此宏定义
+
+#define TCFG_GSENOR_USER_IIC_TYPE                 0     //0:软件IIC  1:硬件IIC 目前只适配软件IIC
 
 //*********************************************************************************//
 //                                  系统配置                                         //
 //*********************************************************************************//
 #define TCFG_AUTO_SHUT_DOWN_TIME		          0   //没有蓝牙连接自动关机时间
 #if (TCFG_LOWPOWER_POWER_SEL == PWR_DCDC15)
-#define TCFG_SYS_LVD_EN						      1   //dcdc模式电压低于2.4v的时候切为LDO模式，需要开启电量检测
+#define TCFG_SYS_LVD_EN						      0   //dcdc模式电压低于2.4v的时候切为LDO模式，需要开启电量检测
 #else
 #define TCFG_SYS_LVD_EN						      0   //电量检测使能
 #endif
 #define TCFG_POWER_ON_NEED_KEY				      0	  //是否需要按按键开机配置
-#define TCFG_HID_AUTO_SHUTDOWN_TIME              (10 * 60)      //HID无操作自动关机(单位：秒)
+#define TCFG_HID_AUTO_SHUTDOWN_TIME              (0 * 60)      //HID无操作自动关机(单位：秒)
 
 //*********************************************************************************//
 //                                  蓝牙配置                                       //
 //*********************************************************************************//
 #define TCFG_USER_TWS_ENABLE                      0   //tws功能使能
 #define TCFG_USER_BLE_ENABLE                      1   //BLE功能使能,---使能后,请配置TCFG_BLE_DEMO_SELECT选择DEMO例子
-#define TCFG_USER_EDR_ENABLE                      1   //EDR功能使能
+#define TCFG_USER_EDR_ENABLE                      0   //EDR功能使能
 
 #if TCFG_USER_EDR_ENABLE
-#define USER_SUPPORT_PROFILE_SPP    0
+#define USER_SUPPORT_PROFILE_SPP    1
 #define USER_SUPPORT_PROFILE_HFP    0
 #define USER_SUPPORT_PROFILE_A2DP   0
 #define USER_SUPPORT_PROFILE_AVCTP  0
-#define USER_SUPPORT_PROFILE_HID    1
-#define USER_SUPPORT_PROFILE_PNP    1
+#define USER_SUPPORT_PROFILE_HID    0
+#define USER_SUPPORT_PROFILE_PNP    0
 #define USER_SUPPORT_PROFILE_PBAP   0
 #endif
 
@@ -393,7 +409,6 @@
 //*********************************************************************************//
 
 #define CONFIG_BT_NORMAL_HZ	            (48 * 1000000L)
-#define CONFIG_BT_POWER_ON_HZ           (96 * 1000000L)
 //#define CONFIG_BT_CONNECT_HZ            (48 * 1000000L)
 
 //*********************************************************************************//
@@ -403,4 +418,3 @@
 #endif
 
 #endif
-

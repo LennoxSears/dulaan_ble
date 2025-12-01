@@ -22,6 +22,8 @@
 #define LOG_CLI_ENABLE
 #include "debug.h"
 
+#define AT_UART_PORT_ID        3  // wakeup_param 里面的port id
+
 void board_power_init(void);
 
 /************************** LOW POWER config ****************************/
@@ -362,8 +364,7 @@ void board_init()
 
 	board_devices_init();
 
-
-#if TCFG_CHARGE_ENABLE && TCFG_HANDSHAKE_ENABLE
+    #if TCFG_CHARGE_ENABLE && TCFG_HANDSHAKE_ENABLE
     if(get_charge_online_flag()){
         handshake_app_start(0, NULL);
     }
@@ -382,6 +383,18 @@ void board_init()
 	}
 #endif
 
+#if USER_UART_UPDATE_ENABLE
+        {
+#include "uart_update.h"
+            uart_update_cfg  update_cfg = {
+                .rx = UART_UPDATE_RX_PORT,
+                .tx = UART_UPDATE_TX_PORT,
+                .output_channel = CH1_UT1_TX,
+                .input_channel = INPUT_CH0
+            };
+            uart_update_init(&update_cfg);
+        }
+#endif
 }
 
 enum {
@@ -458,6 +471,17 @@ static void close_gpio(u8 is_softoff)
     }
 #endif
 
+#if CONFIG_APP_AT_CHAR_COM || CONFIG_APP_AT_COM
+    port_protect(port_group, UART_DB_TX_PIN);
+    port_protect(port_group, UART_DB_RX_PIN);
+
+#if FLOW_CONTROL
+    port_protect(port_group, UART_DB_RTS_PIN);
+    port_protect(port_group, UART_DB_CTS_PIN);
+#endif
+
+#endif
+
     //< close gpio
     gpio_dir(GPIOA, 0, 9, port_group[PORTA_GROUP], GPIO_OR);
     gpio_set_pu(GPIOA, 0, 9, ~port_group[PORTA_GROUP], GPIO_AND);
@@ -531,6 +555,16 @@ struct port_wakeup port1 = {
 };
 #endif
 
+#if 0//USER_UART_UPDATE_ENABLE
+struct port_wakeup port1 = {
+	.pullup_down_enable = ENABLE,                            //配置I/O 内部上下拉是否使能
+	.edge               = FALLING_EDGE,                      //唤醒方式选择,可选：上升沿\下降沿
+    .both_edge          = 0,
+	.iomap              = UART_UPDATE_RX_PORT,               //唤醒口选择
+    .filter             = PORT_FLT_2ms,
+};
+#endif
+
 #if TCFG_CHARGE_ENABLE
 struct port_wakeup charge_port = {
     .edge               = RISING_EDGE,                       //唤醒方式选择,可选：上升沿\下降沿\双边沿
@@ -554,6 +588,15 @@ struct port_wakeup ldoin_port = {
 };
 #endif
 
+struct port_wakeup at_uart_port = {
+	.pullup_down_enable = ENABLE,                            //配置I/O 内部上下拉是否使能
+	.edge               = FALLING_EDGE,                      //唤醒方式选择,可选：上升沿\下降沿
+    .both_edge          = 0,
+	.iomap              = UART_DB_RX_PIN,                   //唤醒口选择
+    .filter             = PORT_FLT_256us,
+};
+
+
 const struct wakeup_param wk_param = {
 
 #if TCFG_ADKEY_ENABLE || TCFG_IOKEY_ENABLE
@@ -565,6 +608,16 @@ const struct wakeup_param wk_param = {
 #if TCFG_TEST_BOX_ENABLE
 	.port[2] = &port1,
 #endif
+
+#if 0//USER_UART_UPDATE_ENABLE
+	.port[2] = &port1,
+#endif
+
+#if CONFIG_APP_AT_CHAR_COM || CONFIG_APP_AT_COM
+    /*at串口唤醒,至少要发多个00 hex数据,demo只做软关机唤醒*/
+    .port[AT_UART_PORT_ID] = &at_uart_port,
+#endif
+
 #if TCFG_CHARGE_ENABLE
     .aport[0] = &charge_port,
     .aport[1] = &vbat_port,
@@ -585,6 +638,10 @@ void board_set_soft_poweroff(void)
 
 #if TCFG_TEST_BOX_ENABLE
 	power_wakeup_index_disable(2);
+#endif
+
+#if CONFIG_APP_AT_CHAR_COM || CONFIG_APP_AT_COM
+	power_wakeup_index_enable(AT_UART_PORT_ID);
 #endif
 
 	close_gpio(1);
@@ -617,6 +674,36 @@ static void wl_audio_clk_on(void)
     JL_WL_AUD->CON0 = 1;
 }
 
+//-----------------------
+//system check go sleep is ok
+#if CONFIG_APP_AT_CHAR_COM || CONFIG_APP_AT_COM
+static u8 board_is_active;
+static u8 board_state_idle_query(void)
+{
+    return !board_is_active;
+}
+
+REGISTER_LP_TARGET(board_lp_target) = {
+    .name = "board_state",
+    .is_idle = board_state_idle_query,
+};
+
+static u8 board_time_to_idle(void)
+{
+    board_is_active = 0;
+}
+
+void board_at_uart_wakeup_enalbe(u8 enalbe)
+{
+    if(enalbe){
+        power_wakeup_index_enable(AT_UART_PORT_ID);
+    }
+    else{
+        power_wakeup_index_disable(AT_UART_PORT_ID);
+    }
+}
+#endif
+
 static void port_wakeup_callback(u8 index, u8 gpio)
 {
 	/* log_info("%s:%d,%d",__FUNCTION__,index,gpio); */
@@ -628,7 +715,20 @@ static void port_wakeup_callback(u8 index, u8 gpio)
 			chargestore_ldo5v_fall_deal();
 			break;
 #endif
-	}
+
+#if CONFIG_APP_AT_CHAR_COM || CONFIG_APP_AT_COM
+        case AT_UART_PORT_ID:
+            if(!board_is_active){
+                board_is_active = 1;
+                putchar('W');
+                sys_timeout_add(0,board_time_to_idle,10000);//delay 给uart 指令退出低功耗
+            }
+            break;
+#endif
+        default:
+            break;
+
+    }
 }
 
 static void aport_wakeup_callback(u8 index, u8 gpio, u8 edge)
@@ -670,6 +770,9 @@ void board_power_init(void)
     aport_edge_wkup_set_callback(aport_wakeup_callback);
     port_edge_wkup_set_callback(port_wakeup_callback);
 
+#if CONFIG_APP_AT_CHAR_COM || CONFIG_APP_AT_COM
+    power_wakeup_index_disable(AT_UART_PORT_ID);
+#endif
 	/* #if (!TCFG_IOKEY_ENABLE && !TCFG_ADKEY_ENABLE) */
     /* charge_check_and_set_pinr(0); */
 /* #endif */

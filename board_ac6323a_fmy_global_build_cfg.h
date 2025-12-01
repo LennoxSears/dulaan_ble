@@ -1,10 +1,10 @@
-#ifndef CONFIG_BOARD_AC6328A_KEYFOB_POST_BUILD_CFG_H
-#define CONFIG_BOARD_AC6328A_KEYFOB_POST_BUILD_CFG_H
+#ifndef CONFIG_BOARD_AC6323A_FMY_POST_BUILD_CFG_H
+#define CONFIG_BOARD_AC6323A_FMY_POST_BUILD_CFG_H
 
 /* 改文件只添加和isd_config.ini相关的配置，用以生成isd_config.ini */
 /* 其他不相关的配置请勿添加在改文件 */
 
-#ifdef CONFIG_BOARD_AC6328A_KEYFOB
+#ifdef CONFIG_BOARD_AC6323A_FMY
 
 /* Following Macros Affect Periods Of Both Code Compiling And Post-build */
 
@@ -25,15 +25,39 @@
 #define FLASH_SIZE_2M							0x200000
 #define FLASH_SIZE_4M							0x400000
 
-#define CONFIG_FLASH_SIZE                       FLASH_SIZE_1M    //配置FLASH大小
+#define CONFIG_FLASH_SIZE                       FLASH_SIZE_512K    //配置FLASH大小
 
+//存放token信息
+#define CONFIG_FINDMY_INFO_ENABLE      		    1		//配置是否支持FINDMY存储
+#if CONFIG_FINDMY_INFO_ENABLE
+#if(CONFIG_FLASH_SIZE == FLASH_SIZE_1M)
+//INI里面有个规则是VM一定会放到最前面
+#define CONFIG_VM_ADDR                          0xFA000 //8K
+#define CONFIG_BTIF_ADDR	                    0xFC000 //4k
+#define CONFIG_BTIF_LEN		                    0x1000
+#define CONFIG_BTIF_OPT		                    1
+#define CONFIG_FINDMY_INFO_ADDR	                0xFD000 //config user space
+#define CONFIG_FINDMY_INFO_LEN	                0x2000  //need 8K
+#define CONFIG_FINDMY_INFO_OPT	                1
+
+#else
+#define CONFIG_VM_ADDR                          0x7A000 //8K
+#define CONFIG_BTIF_ADDR	                    0x7C000 //4k
+#define CONFIG_BTIF_LEN		                    0x1000
+#define CONFIG_BTIF_OPT		                    1
+#define CONFIG_FINDMY_INFO_ADDR	                0x7D000 //config user space
+#define CONFIG_FINDMY_INFO_LEN	                0x2000  //need 8K
+#define CONFIG_FINDMY_INFO_OPT	                1
+
+#endif
+#endif
 
 /* Above Macros Affect Periods Of Both Code Compiling And Post-build */
 
 /* Following Macros Only For Post Bulid Configuaration */
 
 #define CONFIG_DB_UPDATE_DATA_GENERATE_EN       0       //是否生成db_data.bin(用于第三方协议接入使用)
-#define CONFIG_ONLY_GRENERATE_ALIGN_4K_CODE     0    	//ufw只生成1份4K对齐的代码
+#define CONFIG_ONLY_GRENERATE_ALIGN_4K_CODE     1    	//ufw只生成1份4K对齐的代码.findmy要求4K对齐
 
 //config for supported chip version
 #ifdef CONFIG_BR30_C_VERSION

@@ -129,7 +129,7 @@ DEFINES := \
 	-DVM_MAX_SIZE_CONFIG=16*1024 \
 	-DVM_ITEM_MAX_NUM=256 \
 	-DCONFIG_TWS_ENABLE \
-	-DCONFIG_HID_CASE_ENABLE \
+	-DCONFIG_SPP_AND_LE_CASE_ENABLE \
 	-DCONFIG_TRANSFER_ENABLE \
 	-DCONFIG_LITE_AEC_ENABLE=0 \
 	-DCONFIG_LITE_AUDIO \
@@ -168,30 +168,45 @@ INCLUDES := \
 	-I../../../../include_lib/media/media_new/media \
 	-I../../../../include_lib/media/media_new/media/cpu/bd19 \
 	-I../../../../include_lib/media/media_new/media/cpu/bd19/asm \
-	-I../../../../apps/hid/include \
-	-I../../../../apps/hid/board/bd19 \
+	-I../../../../apps/spp_and_le/include \
+	-I../../../../apps/spp_and_le/board/bd19 \
 	-I../../../../apps/common \
+	-I../../../../apps/common/device \
 	-I../../../../apps/common/include \
+	-I../../../../apps/common/power_manage \
+	-I../../../../cpu/bd19 \
 	-I../../../../apps/common/third_party_profile/jieli \
 	-I../../../../apps/common/third_party_profile/jieli/JL_rcsp \
-	-I../../../../apps/common/third_party_profile/jieli/JL_rcsp/rcsp_updata \
-	-I../../../../apps/common/third_party_profile/jieli/JL_rcsp/bt_trans_data \
-	-I../../../../apps/common/third_party_profile/jieli/gatt_common \
 	-I../../../../apps/common/third_party_profile/jieli/online_db \
-	-I../../../../apps/common/third_party_profile/jieli/trans_data_demo \
 	-I../../../../apps/common/third_party_profile/common \
-	-I../../../../apps/common/device \
-	-I../../../../apps/common/device/usb \
 	-I../../../../include_lib/ai_stack/JL_rcsp \
 	-I../../../../include_lib/btstack \
-	-I../../../../cpu/bd19 \
-	-I../../../../include_lib/system/ex_mcu \
-	-I../../../../apps/common/code_switch/include \
-	-I../../../../apps/common/device/optical_mouse_sensor/include \
-	-I../../../../apps/common/device/touch_pad \
+	-I../../../../apps/common/third_party_profile/jieli/JL_rcsp/bt_trans_data \
+	-I../../../../apps/common/third_party_profile/jieli/JL_rcsp/rcsp_updata \
+	-I../../../../apps/common/third_party_profile/jieli/gatt_common \
+	-I../../../../apps/common/third_party_profile/Tecent_LL/include \
+	-I../../../../apps/common/third_party_profile/Tecent_LL/tecent_ll_demo \
+	-I../../../../apps/spp_and_le/examples/ll_sync \
+	-I../../../../apps/common/cJSON \
+	-I../../../../apps/common/third_party_profile/tuya_protocol \
+	-I../../../../apps/common/third_party_profile/tuya_protocol/app/demo \
+	-I../../../../apps/common/third_party_profile/tuya_protocol/app/product_test \
+	-I../../../../apps/common/third_party_profile/tuya_protocol/app/uart_common \
+	-I../../../../apps/common/third_party_profile/tuya_protocol/extern_components/mbedtls \
+	-I../../../../apps/common/third_party_profile/tuya_protocol/port \
+	-I../../../../apps/common/third_party_profile/tuya_protocol/sdk/include \
+	-I../../../../apps/common/third_party_profile/tuya_protocol/sdk/lib \
+	-I../../../../apps/spp_and_le/examples/tuya \
+	-I../../../../apps/common/third_party_profile/hilink_protocol \
+	-I../../../../apps/common/third_party_profile/hilink_protocol/mbedtls_protocol \
+	-I../../../../apps/common/third_party_profile/hilink_protocol/mbedtls_protocol/mbedtls \
+	-I../../../../apps/common/third_party_profile/hilink_protocol/mbedtls_protocol/mbedtls/configs \
+	-I../../../../apps/common/third_party_profile/hilink_protocol/mbedtls_protocol/mbedtls/psa \
+	-I../../../../apps/spp_and_le/examples/hilink \
 	-I../../../../cpu/bd19/audio_encode \
 	-I../../../../cpu/bd19/audio_decode \
 	-I../../../../apps/common/audio \
+	-I../../../../apps/common/device/usb \
 	-I../../../../apps/common/device/usb/device \
 	-I../../../../apps/common/device/usb/host \
 	-I$(SYS_INC_DIR) \
@@ -201,20 +216,20 @@ INCLUDES := \
 c_SRC_FILES := \
 	../../../../apps/common/audio/audio_digital_vol.c \
 	../../../../apps/common/bt_common/bt_test_api.c \
-	../../../../apps/common/code_switch/code_switch.c \
+	../../../../apps/common/cJSON/cJSON.c \
 	../../../../apps/common/debug/debug.c \
+	../../../../apps/common/device/gSensor/fmy/SC7A20_E.c \
+	../../../../apps/common/device/gSensor/fmy/SC7A20_TR.c \
+	../../../../apps/common/device/gSensor/fmy/gSensor_manage.c \
+	../../../../apps/common/device/gSensor/fmy/gsensor_api.c \
+	../../../../apps/common/device/gSensor/fmy/msa310.c \
+	../../../../apps/common/device/gSensor/fmy/msa310_function.c \
 	../../../../apps/common/device/key/adkey.c \
-	../../../../apps/common/device/key/ctmu_touch_key.c \
 	../../../../apps/common/device/key/iokey.c \
 	../../../../apps/common/device/key/irkey.c \
 	../../../../apps/common/device/key/key_driver.c \
-	../../../../apps/common/device/key/matrix_keyboard.c \
-	../../../../apps/common/device/key/matrix_keyboard_ex_mcu.c \
 	../../../../apps/common/device/key/touch_key.c \
-	../../../../apps/common/device/optical_mouse_sensor/OMSensor_manage.c \
-	../../../../apps/common/device/optical_mouse_sensor/hal3205/hal3205.c \
-	../../../../apps/common/device/optical_mouse_sensor/hal3212/hal3212.c \
-	../../../../apps/common/device/touch_pad/SYD9557M.c \
+	../../../../apps/common/device/norflash/norflash.c \
 	../../../../apps/common/device/usb/device/cdc.c \
 	../../../../apps/common/device/usb/device/custom_hid.c \
 	../../../../apps/common/device/usb/device/descriptor.c \
@@ -237,9 +252,45 @@ c_SRC_FILES := \
 	../../../../apps/common/device/usb/host/usb_storage.c \
 	../../../../apps/common/device/usb/usb_config.c \
 	../../../../apps/common/device/usb/usb_host_config.c \
-	../../../../apps/common/ex_mcu/ex_mcu_uart.c \
 	../../../../apps/common/temp_trim/dtemp_pll_trim.c \
+	../../../../apps/common/third_party_profile/Tecent_LL/tecent_ll_demo/ll_task.c \
+	../../../../apps/common/third_party_profile/Tecent_LL/tecent_protocol/ble_qiot_import.c \
+	../../../../apps/common/third_party_profile/Tecent_LL/tecent_protocol/ble_qiot_llsync_data.c \
+	../../../../apps/common/third_party_profile/Tecent_LL/tecent_protocol/ble_qiot_llsync_device.c \
+	../../../../apps/common/third_party_profile/Tecent_LL/tecent_protocol/ble_qiot_llsync_event.c \
+	../../../../apps/common/third_party_profile/Tecent_LL/tecent_protocol/ble_qiot_llsync_ota.c \
+	../../../../apps/common/third_party_profile/Tecent_LL/tecent_protocol/ble_qiot_service.c \
+	../../../../apps/common/third_party_profile/Tecent_LL/tecent_protocol/ble_qiot_template.c \
+	../../../../apps/common/third_party_profile/Tecent_LL/tecent_protocol/ble_qiot_utils_base64.c \
+	../../../../apps/common/third_party_profile/Tecent_LL/tecent_protocol/ble_qiot_utils_crc.c \
+	../../../../apps/common/third_party_profile/Tecent_LL/tecent_protocol/ble_qiot_utils_hmac.c \
+	../../../../apps/common/third_party_profile/Tecent_LL/tecent_protocol/ble_qiot_utils_log.c \
+	../../../../apps/common/third_party_profile/Tecent_LL/tecent_protocol/ble_qiot_utils_md5.c \
+	../../../../apps/common/third_party_profile/Tecent_LL/tecent_protocol/ble_qiot_utils_sha1.c \
 	../../../../apps/common/third_party_profile/common/custom_cfg.c \
+	../../../../apps/common/third_party_profile/hilink_protocol/hilink_ota.c \
+	../../../../apps/common/third_party_profile/hilink_protocol/hilink_protocol.c \
+	../../../../apps/common/third_party_profile/hilink_protocol/hilink_task.c \
+	../../../../apps/common/third_party_profile/hilink_protocol/mbedtls_protocol/aes.c \
+	../../../../apps/common/third_party_profile/hilink_protocol/mbedtls_protocol/arc4.c \
+	../../../../apps/common/third_party_profile/hilink_protocol/mbedtls_protocol/bignum.c \
+	../../../../apps/common/third_party_profile/hilink_protocol/mbedtls_protocol/blowfish.c \
+	../../../../apps/common/third_party_profile/hilink_protocol/mbedtls_protocol/ccm.c \
+	../../../../apps/common/third_party_profile/hilink_protocol/mbedtls_protocol/chacha20.c \
+	../../../../apps/common/third_party_profile/hilink_protocol/mbedtls_protocol/chachapoly.c \
+	../../../../apps/common/third_party_profile/hilink_protocol/mbedtls_protocol/cipher.c \
+	../../../../apps/common/third_party_profile/hilink_protocol/mbedtls_protocol/cipher_wrap.c \
+	../../../../apps/common/third_party_profile/hilink_protocol/mbedtls_protocol/des.c \
+	../../../../apps/common/third_party_profile/hilink_protocol/mbedtls_protocol/gcm.c \
+	../../../../apps/common/third_party_profile/hilink_protocol/mbedtls_protocol/mbedtls_main.c \
+	../../../../apps/common/third_party_profile/hilink_protocol/mbedtls_protocol/md.c \
+	../../../../apps/common/third_party_profile/hilink_protocol/mbedtls_protocol/md5.c \
+	../../../../apps/common/third_party_profile/hilink_protocol/mbedtls_protocol/pkcs5.c \
+	../../../../apps/common/third_party_profile/hilink_protocol/mbedtls_protocol/poly1305.c \
+	../../../../apps/common/third_party_profile/hilink_protocol/mbedtls_protocol/ripemd160.c \
+	../../../../apps/common/third_party_profile/hilink_protocol/mbedtls_protocol/sha1.c \
+	../../../../apps/common/third_party_profile/hilink_protocol/mbedtls_protocol/sha256.c \
+	../../../../apps/common/third_party_profile/hilink_protocol/mbedtls_protocol/sha512.c \
 	../../../../apps/common/third_party_profile/jieli/JL_rcsp/bt_trans_data/rcsp_hid_inter.c \
 	../../../../apps/common/third_party_profile/jieli/JL_rcsp/rcsp_bluetooth.c \
 	../../../../apps/common/third_party_profile/jieli/JL_rcsp/rcsp_updata/rcsp_ch_loader_download.c \
@@ -249,54 +300,119 @@ c_SRC_FILES := \
 	../../../../apps/common/third_party_profile/jieli/gatt_common/le_gatt_server.c \
 	../../../../apps/common/third_party_profile/jieli/online_db/online_db_deal.c \
 	../../../../apps/common/third_party_profile/jieli/online_db/spp_online_db.c \
+	../../../../apps/common/third_party_profile/tuya_protocol/app/demo/tuya_ble_app_demo.c \
+	../../../../apps/common/third_party_profile/tuya_protocol/app/demo/tuya_ota.c \
+	../../../../apps/common/third_party_profile/tuya_protocol/app/product_test/tuya_ble_app_production_test.c \
+	../../../../apps/common/third_party_profile/tuya_protocol/app/uart_common/tuya_ble_app_uart_common_handler.c \
+	../../../../apps/common/third_party_profile/tuya_protocol/extern_components/mbedtls/aes.c \
+	../../../../apps/common/third_party_profile/tuya_protocol/extern_components/mbedtls/ccm.c \
+	../../../../apps/common/third_party_profile/tuya_protocol/extern_components/mbedtls/hmac.c \
+	../../../../apps/common/third_party_profile/tuya_protocol/extern_components/mbedtls/md5.c \
+	../../../../apps/common/third_party_profile/tuya_protocol/extern_components/mbedtls/sha1.c \
+	../../../../apps/common/third_party_profile/tuya_protocol/extern_components/mbedtls/sha256.c \
+	../../../../apps/common/third_party_profile/tuya_protocol/port/tuya_ble_port.c \
+	../../../../apps/common/third_party_profile/tuya_protocol/port/tuya_ble_port_JL.c \
+	../../../../apps/common/third_party_profile/tuya_protocol/port/tuya_ble_port_peripheral.c \
+	../../../../apps/common/third_party_profile/tuya_protocol/sdk/src/tuya_ble_api.c \
+	../../../../apps/common/third_party_profile/tuya_protocol/sdk/src/tuya_ble_bulk_data.c \
+	../../../../apps/common/third_party_profile/tuya_protocol/sdk/src/tuya_ble_data_handler.c \
+	../../../../apps/common/third_party_profile/tuya_protocol/sdk/src/tuya_ble_event.c \
+	../../../../apps/common/third_party_profile/tuya_protocol/sdk/src/tuya_ble_event_handler.c \
+	../../../../apps/common/third_party_profile/tuya_protocol/sdk/src/tuya_ble_event_handler_weak.c \
+	../../../../apps/common/third_party_profile/tuya_protocol/sdk/src/tuya_ble_feature_weather.c \
+	../../../../apps/common/third_party_profile/tuya_protocol/sdk/src/tuya_ble_gatt_send_queue.c \
+	../../../../apps/common/third_party_profile/tuya_protocol/sdk/src/tuya_ble_heap.c \
+	../../../../apps/common/third_party_profile/tuya_protocol/sdk/src/tuya_ble_main.c \
+	../../../../apps/common/third_party_profile/tuya_protocol/sdk/src/tuya_ble_mem.c \
+	../../../../apps/common/third_party_profile/tuya_protocol/sdk/src/tuya_ble_mutli_tsf_protocol.c \
+	../../../../apps/common/third_party_profile/tuya_protocol/sdk/src/tuya_ble_queue.c \
+	../../../../apps/common/third_party_profile/tuya_protocol/sdk/src/tuya_ble_storage.c \
+	../../../../apps/common/third_party_profile/tuya_protocol/sdk/src/tuya_ble_unix_time.c \
+	../../../../apps/common/third_party_profile/tuya_protocol/sdk/src/tuya_ble_utils.c \
 	../../../../apps/common/update/testbox_update.c \
 	../../../../apps/common/update/uart_update.c \
 	../../../../apps/common/update/uart_update_master.c \
 	../../../../apps/common/update/update.c \
-	../../../../apps/hid/app_main.c \
-	../../../../apps/hid/board/bd19/board_ac6321a_demo.c \
-	../../../../apps/hid/board/bd19/board_ac6321a_mouse.c \
-	../../../../apps/hid/board/bd19/board_ac6321a_stand_keyboard.c \
-	../../../../apps/hid/board/bd19/board_ac6323a_demo.c \
-	../../../../apps/hid/board/bd19/board_ac6328a_keyfob.c \
-	../../../../apps/hid/board/bd19/board_ac6328b_demo.c \
-	../../../../apps/hid/board/bd19/board_ac6329b_demo.c \
-	../../../../apps/hid/board/bd19/board_ac6329c_demo.c \
-	../../../../apps/hid/board/bd19/board_ac6329e_demo.c \
-	../../../../apps/hid/board/bd19/board_ac6329f_demo.c \
-	../../../../apps/hid/board/bd19/board_ac632n_demo.c \
-	../../../../apps/hid/config/lib_btctrler_config.c \
-	../../../../apps/hid/config/lib_btstack_config.c \
-	../../../../apps/hid/config/lib_driver_config.c \
-	../../../../apps/hid/config/lib_media_config.c \
-	../../../../apps/hid/config/lib_profile_config.c \
-	../../../../apps/hid/config/lib_system_config.c \
-	../../../../apps/hid/config/lib_update_config.c \
-	../../../../apps/hid/config/log_config.c \
-	../../../../apps/hid/examples/gamebox/app_gamebox.c \
-	../../../../apps/hid/examples/gamebox/gamebox.c \
-	../../../../apps/hid/examples/gamebox/key_mapping.c \
-	../../../../apps/hid/examples/idle/app_idle.c \
-	../../../../apps/hid/examples/keyboard/app_keyboard.c \
-	../../../../apps/hid/examples/keyfob/app_keyfob.c \
-	../../../../apps/hid/examples/keypage/app_keypage.c \
-	../../../../apps/hid/examples/mouse_dual/app_mouse_dual.c \
-	../../../../apps/hid/examples/mouse_single/app_mouse.c \
-	../../../../apps/hid/examples/standard_keyboard/app_standard_keyboard.c \
-	../../../../apps/hid/examples/standard_keyboard/usb_hid_devices.c \
-	../../../../apps/hid/examples/voice_remote_control/app_remote_control.c \
-	../../../../apps/hid/modules/bt/app_comm_ble.c \
-	../../../../apps/hid/modules/bt/app_comm_edr.c \
-	../../../../apps/hid/modules/bt/ble_hogp.c \
-	../../../../apps/hid/modules/bt/edr_hid_user.c \
-	../../../../apps/hid/modules/misc.c \
-	../../../../apps/hid/modules/power/app_charge.c \
-	../../../../apps/hid/modules/power/app_chargestore.c \
-	../../../../apps/hid/modules/power/app_handshake.c \
-	../../../../apps/hid/modules/power/app_power_manage.c \
-	../../../../apps/hid/modules/rtc_alarm.c \
-	../../../../apps/hid/modules/user_cfg.c \
-	../../../../apps/hid/version.c \
+	../../../../apps/spp_and_le/app_main.c \
+	../../../../apps/spp_and_le/board/bd19/board_ac6321a_demo.c \
+	../../../../apps/spp_and_le/board/bd19/board_ac6323a_demo.c \
+	../../../../apps/spp_and_le/board/bd19/board_ac6323a_fmy.c \
+	../../../../apps/spp_and_le/board/bd19/board_ac6328a_demo.c \
+	../../../../apps/spp_and_le/board/bd19/board_ac6328b_dongle.c \
+	../../../../apps/spp_and_le/board/bd19/board_ac6329b_demo.c \
+	../../../../apps/spp_and_le/board/bd19/board_ac6329c_demo.c \
+	../../../../apps/spp_and_le/board/bd19/board_ac6329e_demo.c \
+	../../../../apps/spp_and_le/board/bd19/board_ac6329f_demo.c \
+	../../../../apps/spp_and_le/board/bd19/board_ac632n_demo.c \
+	../../../../apps/spp_and_le/config/lib_btctrler_config.c \
+	../../../../apps/spp_and_le/config/lib_btstack_config.c \
+	../../../../apps/spp_and_le/config/lib_driver_config.c \
+	../../../../apps/spp_and_le/config/lib_media_config.c \
+	../../../../apps/spp_and_le/config/lib_profile_config.c \
+	../../../../apps/spp_and_le/config/lib_system_config.c \
+	../../../../apps/spp_and_le/config/lib_update_config.c \
+	../../../../apps/spp_and_le/config/log_config.c \
+	../../../../apps/spp_and_le/examples/at_char_com/app_at_char_com.c \
+	../../../../apps/spp_and_le/examples/at_char_com/at_char_cmds.c \
+	../../../../apps/spp_and_le/examples/at_char_com/at_char_uart.c \
+	../../../../apps/spp_and_le/examples/at_char_com/ble_at_char_client.c \
+	../../../../apps/spp_and_le/examples/at_char_com/ble_at_char_com.c \
+	../../../../apps/spp_and_le/examples/at_com/app_at_com.c \
+	../../../../apps/spp_and_le/examples/at_com/at_cmds.c \
+	../../../../apps/spp_and_le/examples/at_com/at_uart.c \
+	../../../../apps/spp_and_le/examples/at_com/ble_at_client.c \
+	../../../../apps/spp_and_le/examples/at_com/ble_at_com.c \
+	../../../../apps/spp_and_le/examples/at_com/spp_at_trans.c \
+	../../../../apps/spp_and_le/examples/ble_beacon/app_beacon.c \
+	../../../../apps/spp_and_le/examples/ble_beacon/ble_beacon.c \
+	../../../../apps/spp_and_le/examples/ble_central/app_central.c \
+	../../../../apps/spp_and_le/examples/ble_central/ble_central.c \
+	../../../../apps/spp_and_le/examples/ble_central/ble_central_server.c \
+	../../../../apps/spp_and_le/examples/conn_24g/app_conn_24g.c \
+	../../../../apps/spp_and_le/examples/conn_24g/ble_24g_client.c \
+	../../../../apps/spp_and_le/examples/conn_24g/ble_24g_server.c \
+	../../../../apps/spp_and_le/examples/dongle/app_dongle.c \
+	../../../../apps/spp_and_le/examples/dongle/ble_dg_central.c \
+	../../../../apps/spp_and_le/examples/dongle/edr_hid_user.c \
+	../../../../apps/spp_and_le/examples/dongle/ota_dg_central.c \
+	../../../../apps/spp_and_le/examples/dongle/usb_hid_devices.c \
+	../../../../apps/spp_and_le/examples/dongle/usb_second_hid_devices.c \
+	../../../../apps/spp_and_le/examples/findmy/app_fmy.c \
+	../../../../apps/spp_and_le/examples/findmy/ble_fmy.c \
+	../../../../apps/spp_and_le/examples/findmy/ble_fmy_fmna.c \
+	../../../../apps/spp_and_le/examples/findmy/ble_fmy_ota.c \
+	../../../../apps/spp_and_le/examples/findmy/ble_fmy_sensor_uart.c \
+	../../../../apps/spp_and_le/examples/ftms/app_ftms.c \
+	../../../../apps/spp_and_le/examples/ftms/ble_ftms.c \
+	../../../../apps/spp_and_le/examples/hilink/app_hilink.c \
+	../../../../apps/spp_and_le/examples/hilink/hilink_demo.c \
+	../../../../apps/spp_and_le/examples/idle/app_idle.c \
+	../../../../apps/spp_and_le/examples/ll_sync/app_ll_sync.c \
+	../../../../apps/spp_and_le/examples/ll_sync/ll_sync_demo.c \
+	../../../../apps/spp_and_le/examples/multi_conn/app_multi_conn.c \
+	../../../../apps/spp_and_le/examples/multi_conn/ble_multi.c \
+	../../../../apps/spp_and_le/examples/multi_conn/ble_multi_central.c \
+	../../../../apps/spp_and_le/examples/multi_conn/ble_multi_peripheral.c \
+	../../../../apps/spp_and_le/examples/nonconn_24g/app_nonconn_24g.c \
+	../../../../apps/spp_and_le/examples/nonconn_24g/ble_24g_deal.c \
+	../../../../apps/spp_and_le/examples/trans_data/app_spp_and_le.c \
+	../../../../apps/spp_and_le/examples/trans_data/ble_trans.c \
+	../../../../apps/spp_and_le/examples/trans_data/ble_trans_ios_services.c \
+	../../../../apps/spp_and_le/examples/trans_data/ble_trans_search.c \
+	../../../../apps/spp_and_le/examples/tuya/app_tuya.c \
+	../../../../apps/spp_and_le/examples/tuya/tuya_demo.c \
+	../../../../apps/spp_and_le/modules/bt/app_comm_ble.c \
+	../../../../apps/spp_and_le/modules/bt/app_comm_edr.c \
+	../../../../apps/spp_and_le/modules/bt/edr_emitter.c \
+	../../../../apps/spp_and_le/modules/bt/spp_trans.c \
+	../../../../apps/spp_and_le/modules/misc.c \
+	../../../../apps/spp_and_le/modules/power/app_charge.c \
+	../../../../apps/spp_and_le/modules/power/app_chargestore.c \
+	../../../../apps/spp_and_le/modules/power/app_handshake.c \
+	../../../../apps/spp_and_le/modules/power/app_power_manage.c \
+	../../../../apps/spp_and_le/modules/rtc_alarm.c \
+	../../../../apps/spp_and_le/modules/user_cfg.c \
+	../../../../apps/spp_and_le/version.c \
 	../../../../cpu/bd19/adc_api.c \
 	../../../../cpu/bd19/audio_codec_clock.c \
 	../../../../cpu/bd19/audio_decode/audio_decode.c \
@@ -358,12 +474,16 @@ LFLAGS := \
 	../../../../cpu/bd19/liba/btctrler.a \
 	../../../../cpu/bd19/liba/agreement.a \
 	../../../../cpu/bd19/liba/rcsp_stack.a \
+	../../../../cpu/bd19/liba/fmna_stack.a \
+	../../../../cpu/bd19/liba/fmna_auth.a \
+	../../../../cpu/bd19/liba/MotionDetection.a \
+	../../../../apps/common/third_party_profile/tuya_protocol/sdk/lib/lib_tuya_v200_Q32S.a \
 	../../../../cpu/bd19/liba/media.a \
 	../../../../cpu/bd19/liba/lc3_codec_lib.a \
 	../../../../cpu/bd19/liba/usbc_codec_lib.a \
 	../../../../cpu/bd19/liba/lib_adpcm_ima_code.a \
-	../../../../cpu/bd19/liba/wtgv2_dec_lib.a \
 	../../../../cpu/bd19/liba/wav_dec_lib.a \
+	../../../../cpu/bd19/liba/wtgv2_dec_lib.a \
 	../../../../cpu/bd19/liba/opus_enc_lib.a \
 	../../../../cpu/bd19/liba/msbc_codec_lib.a \
 	../../../../cpu/bd19/liba/update.a \

@@ -12,7 +12,6 @@
 #include "usb/otg.h"
 #include "norflash.h"
 #include "asm/power/p33.h"
-#include "ex_mcu_uart.h"
 
 #define LOG_TAG_CONST       BOARD
 #define LOG_TAG             "[BOARD]"
@@ -67,7 +66,8 @@ CHARGE_PLATFORM_DATA_BEGIN(charge_data)
     .charge_full_mA			= TCFG_CHARGE_FULL_MA,             //充电截止电流
     .charge_mA				= TCFG_CHARGE_MA,                  //充电电流
 /*ldo5v拔出过滤值，过滤时间 = (filter*2 + 20)ms,ldoin<0.6V且时间大于过滤时间才认为拔出
- 对于充满直接从5V掉到0V的充电仓，该值必须设置成0，对于充满由5V先掉到0V之后再升压到xV的充电，需要根据实际情况设置该值大小*/
+ 对于充满直接从5V掉到0V的充电仓，该值必须设置成0，对于充满由5V先掉到0V之后再升压到xV的
+ 充电仓，需要根据实际情况设置该值大小*/
 	.ldo5v_off_filter		= 100,
     .ldo5v_on_filter        = 50,
     .ldo5v_keep_filter      = 220,
@@ -225,15 +225,6 @@ struct otg_dev_data otg_data = {
 };
 #endif
 
-/**************************ex_mcu config****************************/
-#if TCFG_EX_MCU_ENABLE
-EX_MCU_PLATFORM_DATA_BEGIN(ex_mcu_data)
-    .io_port                = TCFG_EX_MCU_PORT,
-    .tran_baudrate          = TCFG_EX_MCU_TRAN_BAUDRATE,
-EX_MCU_PLATFORM_DATA_END()
-#endif
-
-
 REGISTER_DEVICES(device_table) = {
 #if TCFG_OTG_MODE
     { "otg",     &usb_dev_ops, (void *) &otg_data},
@@ -274,10 +265,6 @@ static void board_devices_init(void)
 
 #if TCFG_RTC_ALARM_ENABLE
     alarm_init(&rtc_data);
-#endif
-
-#if TCFG_EX_MCU_ENABLE
-    ucEx_mcu_init(&ex_mcu_data);
 #endif
 
 }
@@ -382,7 +369,6 @@ static void close_gpio(void)
 			port_protect(port_group, IO_PORT_DM1);			//protect 长按复位
 		}
 	}
-
 #if TCFG_ADKEY_ENABLE
     port_protect(port_group,TCFG_ADKEY_PORT);
 #endif /* */
