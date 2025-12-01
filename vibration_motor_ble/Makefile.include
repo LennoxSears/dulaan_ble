@@ -1,0 +1,25 @@
+# Vibration Motor BLE Protocol - Makefile Include
+# Add this to your main Makefile
+
+# Source files
+VM_BLE_SRCS := \
+	vibration_motor_ble/vm_ble_service.c \
+	vibration_motor_ble/vm_security.c \
+	vibration_motor_ble/vm_storage.c \
+	vibration_motor_ble/vm_motor_control.c
+
+# Include directory
+VM_BLE_INC := -Ivibration_motor_ble
+
+# Add to your project's source list
+# SRCS += $(VM_BLE_SRCS)
+
+# Add to your project's include paths
+# INCLUDES += $(VM_BLE_INC)
+
+# Example integration into existing Makefile:
+# 
+# include vibration_motor_ble/Makefile.include
+# 
+# OBJS += $(VM_BLE_SRCS:.c=.o)
+# CFLAGS += $(VM_BLE_INC)
