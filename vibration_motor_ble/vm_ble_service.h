@@ -59,6 +59,14 @@ int vm_ble_service_init(void);
 const void *vm_ble_get_server_config(void);
 
 /**
+ * Get security manager configuration for application integration
+ * This should be passed to the application's gatt_ctrl_t structure
+ * Configures Security Level 4 (LESC + Just-Works bonding)
+ * @return Pointer to SM configuration
+ */
+const void *vm_ble_get_sm_config(void);
+
+/**
  * Handle incoming write request to control characteristic
  * @param conn_handle Connection handle
  * @param data Packet data

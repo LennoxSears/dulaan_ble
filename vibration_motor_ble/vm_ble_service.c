@@ -6,6 +6,7 @@
 
 /* JieLi SDK includes */
 #include "le_gatt_common.h"
+#include "btstack/bluetooth.h"
 
 /* Connection handle */
 static uint16_t vm_conn_handle = 0;
@@ -162,6 +163,17 @@ static int vm_event_packet_handler(int event, u8 *packet, u16 size, u8 *ext_para
     return 0;
 }
 
+/* Security Manager configuration for Level 4 (LESC + Just-Works) */
+static const sm_cfg_t vm_sm_config = {
+    .slave_security_auto_req = 1,  /* Auto request security */
+    .slave_set_wait_security = 1,  /* Wait for security before operations */
+    .io_capabilities = IO_CAPABILITY_NO_INPUT_NO_OUTPUT,  /* Just-Works pairing */
+    .authentication_req_flags = SM_AUTHREQ_BONDING | SM_AUTHREQ_SECURE_CONNECTION,  /* LESC + Bonding */
+    .min_key_size = 16,
+    .max_key_size = 16,
+    .sm_cb_packet_handler = NULL,
+};
+
 /* GATT server configuration */
 static const gatt_server_cfg_t vm_server_cfg = {
     .att_read_cb = &vm_att_read_callback,
@@ -211,4 +223,10 @@ int vm_ble_service_init(void)
 const gatt_server_cfg_t *vm_ble_get_server_config(void)
 {
     return &vm_server_cfg;
+}
+
+/* Get security manager configuration for application integration */
+const sm_cfg_t *vm_ble_get_sm_config(void)
+{
+    return &vm_sm_config;
 }
