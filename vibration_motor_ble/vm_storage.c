@@ -1,27 +1,17 @@
 #include "vm_storage.h"
 #include <string.h>
 
-/* JieLi SDK VM (Virtual Memory) includes */
-/* The SDK has VM_MAX_SIZE_CONFIG and VM_ITEM_MAX_NUM configured */
-/* #include "system/vm.h" */
+/* JieLi SDK includes */
+#include "syscfg_id.h"
+#include "typedef.h"
 
 /*
- * JieLi SDK uses a VM (Virtual Memory) system for persistent storage
- * Based on the build config:
- * - VM_MAX_SIZE_CONFIG=16*1024 (16KB)
- * - VM_ITEM_MAX_NUM=256
- * - CONFIG_ITEM_FORMAT_VM is enabled
- * 
- * Typical VM API:
- * - syscfg_write(id, data, len) - Write data
- * - syscfg_read(id, data, len) - Read data
- * - syscfg_remove(id) - Remove item
+ * VM item IDs - using range 50-99 (CFG_STORE_VM_ONLY_BEGIN to CFG_STORE_VM_ONLY_END)
+ * These IDs are reserved for VM-only storage and won't conflict with system IDs
  */
-
-/* VM item IDs - must be unique in the system */
-#define VM_ID_CSRK          0xA0
-#define VM_ID_COUNTER       0xA1
-#define VM_ID_BONDED_FLAG   0xA2
+#define VM_ID_CSRK          50
+#define VM_ID_COUNTER       51
+#define VM_ID_BONDED_FLAG   52
 
 int vm_storage_init(void)
 {
@@ -32,86 +22,57 @@ int vm_storage_init(void)
 int vm_storage_save_bonding(const uint8_t *csrk, uint64_t counter)
 {
     int ret;
+    u8 bonded_flag = 1;
     
     if (!csrk) {
         return -1;
     }
     
-    /*
-     * Save CSRK (16 bytes)
-     * Example: syscfg_write(VM_ID_CSRK, csrk, 16);
-     */
-    /* TODO: Implement using JieLi VM API */
-    (void)csrk;  /* Suppress unused warning in placeholder */
-    ret = 0;  /* Placeholder */
-    
-    if (ret != 0) {
-        return ret;
+    /* Save CSRK (16 bytes) */
+    ret = syscfg_write(VM_ID_CSRK, (void *)csrk, 16);
+    if (ret != 16) {
+        return -1;
     }
     
-    /*
-     * Save counter (8 bytes)
-     * Example: syscfg_write(VM_ID_COUNTER, &counter, 8);
-     */
-    /* TODO: Implement using JieLi VM API */
-    (void)counter;  /* Suppress unused warning in placeholder */
-    ret = 0;  /* Placeholder */
-    
-    if (ret != 0) {
-        return ret;
+    /* Save counter (8 bytes) */
+    ret = syscfg_write(VM_ID_COUNTER, (void *)&counter, 8);
+    if (ret != 8) {
+        return -1;
     }
     
-    /*
-     * Save bonded flag (1 byte)
-     * Example: uint8_t bonded_flag = 1;
-     *          syscfg_write(VM_ID_BONDED_FLAG, &bonded_flag, 1);
-     */
-    /* TODO: Implement using JieLi VM API */
-    ret = 0;  /* Placeholder */
+    /* Save bonded flag (1 byte) */
+    ret = syscfg_write(VM_ID_BONDED_FLAG, &bonded_flag, 1);
+    if (ret != 1) {
+        return -1;
+    }
     
-    return ret;
+    return 0;
 }
 
 int vm_storage_load_bonding(uint8_t *csrk, uint64_t *counter)
 {
     int ret;
-    uint8_t bonded_flag = 0;
+    u8 bonded_flag = 0;
     
     if (!csrk || !counter) {
         return -1;
     }
     
-    /*
-     * Check bonded flag
-     * Example: ret = syscfg_read(VM_ID_BONDED_FLAG, &bonded_flag, 1);
-     */
-    /* TODO: Implement using JieLi VM API */
-    ret = -1;  /* Placeholder - not bonded */
-    
-    if (ret != 0 || bonded_flag != 1) {
+    /* Check bonded flag */
+    ret = syscfg_read(VM_ID_BONDED_FLAG, &bonded_flag, 1);
+    if (ret != 1 || bonded_flag != 1) {
         return -1;  /* Not bonded */
     }
     
-    /*
-     * Load CSRK
-     * Example: ret = syscfg_read(VM_ID_CSRK, csrk, 16);
-     */
-    /* TODO: Implement using JieLi VM API */
-    ret = 0;  /* Placeholder */
-    
-    if (ret != 0) {
+    /* Load CSRK */
+    ret = syscfg_read(VM_ID_CSRK, csrk, 16);
+    if (ret != 16) {
         return -1;
     }
     
-    /*
-     * Load counter
-     * Example: ret = syscfg_read(VM_ID_COUNTER, counter, 8);
-     */
-    /* TODO: Implement using JieLi VM API */
-    *counter = 0;  /* Placeholder */
-    ret = 0;
-    
-    if (ret != 0) {
+    /* Load counter */
+    ret = syscfg_read(VM_ID_COUNTER, (u8 *)counter, 8);
+    if (ret != 8) {
         return -1;
     }
     
@@ -120,26 +81,19 @@ int vm_storage_load_bonding(uint8_t *csrk, uint64_t *counter)
 
 int vm_storage_save_counter(uint64_t counter)
 {
-    /*
-     * Update counter in flash
-     * Example: syscfg_write(VM_ID_COUNTER, &counter, 8);
-     */
-    /* TODO: Implement using JieLi VM API */
-    (void)counter;  /* Suppress unused parameter warning */
-    
-    return 0;  /* Placeholder */
+    int ret = syscfg_write(VM_ID_COUNTER, (void *)&counter, 8);
+    return (ret == 8) ? 0 : -1;
 }
 
 int vm_storage_clear_bonding(void)
 {
-    /*
-     * Remove all bonding items
-     * Example:
-     * syscfg_remove(VM_ID_CSRK);
-     * syscfg_remove(VM_ID_COUNTER);
-     * syscfg_remove(VM_ID_BONDED_FLAG);
-     */
-    /* TODO: Implement using JieLi VM API */
+    u8 clear_flag = 0;
     
-    return 0;  /* Placeholder */
+    /* Clear bonded flag - this effectively unbonds the device */
+    syscfg_write(VM_ID_BONDED_FLAG, &clear_flag, 1);
+    
+    /* Note: We don't need to erase CSRK and counter, just clearing the flag
+     * is sufficient. They will be overwritten on next bonding. */
+    
+    return 0;
 }

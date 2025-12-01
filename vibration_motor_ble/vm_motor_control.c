@@ -1,35 +1,27 @@
 #include "vm_motor_control.h"
-
-/* JieLi SDK PWM includes */
-/* #include "asm/pwm.h" */
-/* #include "asm/gpio.h" */
+#include "asm/mcpwm.h"
+#include "typedef.h"
 
 static uint8_t g_current_duty = 0;
+static pwm_ch_num_type g_pwm_channel = pwm_ch0;
 
 int vm_motor_init(void)
 {
-    /*
-     * Initialize PWM for motor control
-     * 
-     * JieLi SDK PWM configuration typically involves:
-     * 1. Configure GPIO pin as PWM output
-     * 2. Set PWM frequency
-     * 3. Set initial duty cycle to 0
-     * 
-     * Example pseudo-code:
-     * 
-     * struct pwm_platform_data pwm_config = {
-     *     .pwm_ch = PWM_CH0,
-     *     .freq = VM_MOTOR_PWM_FREQ_HZ,
-     *     .duty = 0,
-     *     .port = VM_MOTOR_PWM_PIN,
-     * };
-     * 
-     * pwm_init(&pwm_config);
-     * pwm_ch_open(PWM_CH0);
-     */
+    struct pwm_platform_data pwm_config = {
+        .pwm_aligned_mode = pwm_edge_aligned,
+        .pwm_ch_num = pwm_ch0,
+        .frequency = VM_MOTOR_PWM_FREQ_HZ,
+        .duty = 0,  /* Start with 0% duty */
+        .h_pin = VM_MOTOR_PWM_PIN,
+        .l_pin = (u8)-1,  /* No complementary pin */
+        .complementary_en = 0,  /* No complementary output */
+    };
     
-    /* TODO: Implement using JieLi SDK PWM API */
+    /* Initialize MCPWM */
+    mcpwm_init(&pwm_config);
+    
+    /* Open PWM channel */
+    mcpwm_open(g_pwm_channel);
     
     g_current_duty = 0;
     
@@ -38,22 +30,11 @@ int vm_motor_init(void)
 
 void vm_motor_set_duty(uint8_t duty)
 {
-    /*
-     * Set PWM duty cycle
-     * 
-     * duty: 0-255 maps to 0%-100%
-     * 
-     * Example pseudo-code:
-     * 
-     * uint32_t duty_percent = (duty * 100) / 255;
-     * pwm_ch_set_duty(PWM_CH0, duty_percent);
-     * 
-     * Or for finer control:
-     * uint32_t duty_value = (duty * pwm_period) / 255;
-     * pwm_ch_set_duty_value(PWM_CH0, duty_value);
-     */
+    /* Convert 0-255 to 0-10000 (0% to 100% with 0.01% resolution) */
+    u16 duty_value = ((u32)duty * 10000) / 255;
     
-    /* TODO: Implement using JieLi SDK PWM API */
+    /* Set PWM duty cycle */
+    mcpwm_set_duty(g_pwm_channel, duty_value);
     
     g_current_duty = duty;
 }

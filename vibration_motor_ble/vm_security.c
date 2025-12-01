@@ -3,9 +3,9 @@
 #include "vm_storage.h"
 #include <string.h>
 
-/* JieLi SDK crypto includes - adjust as needed */
-/* #include "crypto/aes.h" */
-/* #include "crypto/cmac.h" */
+/* mbedtls includes for AES-CMAC */
+#include "mbedtls/cipher.h"
+#include "mbedtls/cmac.h"
 
 static vm_security_state_t g_security_state;
 
@@ -44,36 +44,49 @@ const vm_security_state_t* vm_security_get_state(void)
 int vm_aes_cmac_32(const uint8_t *data, uint16_t len, 
                    const uint8_t *key, uint32_t *mac_out)
 {
-    /*
-     * AES-CMAC-128 implementation
-     * 
-     * This needs to use JieLi SDK's crypto library.
-     * The chip has CONFIG_NEW_ECC_ENABLE and CONFIG_CRYPTO_TOOLBOX_OSIZE_IN_MASKROM
-     * which suggests crypto functions are available.
-     * 
-     * Typical implementation:
-     * 1. Compute full AES-CMAC-128 (16 bytes)
-     * 2. Take first 4 bytes as CMAC-32
-     * 
-     * Example pseudo-code:
-     * 
-     * uint8_t mac_128[16];
-     * aes_cmac_128(data, len, key, mac_128);
-     * *mac_out = (mac_128[0] << 0) | (mac_128[1] << 8) | 
-     *            (mac_128[2] << 16) | (mac_128[3] << 24);
-     */
+    mbedtls_cipher_context_t ctx;
+    unsigned char mac_128[16];
+    int ret;
     
-    /* TODO: Implement using JieLi SDK crypto API */
+    /* Initialize cipher context */
+    mbedtls_cipher_init(&ctx);
     
-    /* WARNING: Placeholder implementation - always returns 0
-     * This will cause security bypass if not properly implemented!
-     * All CMAC verifications will pass if expected MIC is also 0.
-     * MUST be replaced with actual AES-CMAC before production use.
-     */
-    (void)data;  /* Suppress unused parameter warning */
-    (void)len;
-    (void)key;
-    *mac_out = 0;
+    /* Setup AES-128 cipher */
+    ret = mbedtls_cipher_setup(&ctx, 
+                               mbedtls_cipher_info_from_type(MBEDTLS_CIPHER_AES_128_ECB));
+    if (ret != 0) {
+        mbedtls_cipher_free(&ctx);
+        return -1;
+    }
+    
+    /* Start CMAC */
+    ret = mbedtls_cipher_cmac_starts(&ctx, key, 128);
+    if (ret != 0) {
+        mbedtls_cipher_free(&ctx);
+        return -1;
+    }
+    
+    /* Update with data */
+    ret = mbedtls_cipher_cmac_update(&ctx, data, len);
+    if (ret != 0) {
+        mbedtls_cipher_free(&ctx);
+        return -1;
+    }
+    
+    /* Finish and get MAC */
+    ret = mbedtls_cipher_cmac_finish(&ctx, mac_128);
+    mbedtls_cipher_free(&ctx);
+    
+    if (ret != 0) {
+        return -1;
+    }
+    
+    /* Take first 4 bytes as CMAC-32 (little-endian) */
+    *mac_out = ((uint32_t)mac_128[0] << 0)  |
+               ((uint32_t)mac_128[1] << 8)  |
+               ((uint32_t)mac_128[2] << 16) |
+               ((uint32_t)mac_128[3] << 24);
+    
     return 0;
 }
 

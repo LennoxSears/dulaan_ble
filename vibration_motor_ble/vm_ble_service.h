@@ -46,9 +46,17 @@ typedef struct {
 
 /**
  * Initialize the vibration motor BLE service
+ * Registers GATT profile and initializes security and motor control
  * @return 0 on success, negative on error
  */
 int vm_ble_service_init(void);
+
+/**
+ * Get GATT server configuration for application integration
+ * This should be passed to the application's gatt_ctrl_t structure
+ * @return Pointer to server configuration
+ */
+const void *vm_ble_get_server_config(void);
 
 /**
  * Handle incoming write request to control characteristic

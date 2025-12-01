@@ -1,20 +1,14 @@
 #include "vm_ble_service.h"
+#include "vm_ble_profile.h"
 #include "vm_security.h"
 #include "vm_motor_control.h"
 #include <string.h>
 
-/* JieLi SDK includes - adjust paths as needed */
-/* These are placeholder includes based on typical BLE stack structure */
-/* #include "le_gatt_server.h" */
-/* #include "btstack/bluetooth.h" */
+/* JieLi SDK includes */
+#include "le_gatt_common.h"
 
-/* Service and characteristic UUIDs - used during GATT registration */
-static const uint8_t vm_service_uuid[] __attribute__((unused)) = {VM_SERVICE_UUID_128};
-static const uint8_t vm_char_uuid[] __attribute__((unused)) = {VM_CHAR_UUID_128};
-
-/* GATT service and characteristic handles - set during registration */
-static uint16_t vm_service_handle __attribute__((unused)) = 0;
-static uint16_t vm_char_handle = 0;
+/* Connection handle */
+static uint16_t vm_conn_handle = 0;
 
 uint64_t vm_get_counter_le48(const uint8_t *data)
 {
@@ -88,21 +82,22 @@ int vm_ble_handle_write(uint16_t conn_handle, const uint8_t *data, uint16_t len)
 }
 
 /* 
- * GATT write callback - to be registered with BLE stack
- * This is a template - actual implementation depends on JieLi SDK API
- * 
- * NOTE: This function is currently unused but provided as a template.
- * Remove 'static' and register it with the BLE stack during integration.
+ * GATT write callback - called by BLE stack when characteristic is written
  */
-__attribute__((unused))
-static int vm_gatt_write_callback(uint16_t conn_handle, uint16_t att_handle, 
-                                   const uint8_t *data, uint16_t len)
+static int vm_att_write_callback(hci_con_handle_t connection_handle, uint16_t att_handle,
+                                  uint16_t transaction_mode, uint16_t offset,
+                                  uint8_t *buffer, uint16_t buffer_size)
 {
-    if (att_handle != vm_char_handle) {
-        return -1;  /* Not our characteristic */
+    (void)transaction_mode;
+    (void)offset;
+    
+    /* Check if this is our characteristic */
+    if (att_handle != ATT_CHARACTERISTIC_VM_MOTOR_CONTROL_VALUE_HANDLE) {
+        return 0;  /* Not our characteristic, let other handlers process it */
     }
     
-    int ret = vm_ble_handle_write(conn_handle, data, len);
+    /* Handle the write */
+    int ret = vm_ble_handle_write(connection_handle, buffer, buffer_size);
     
     /* Map error codes to ATT error codes */
     switch (ret) {
@@ -122,6 +117,58 @@ static int vm_gatt_write_callback(uint16_t conn_handle, uint16_t att_handle,
     }
 }
 
+/*
+ * GATT read callback - not used for our write-only characteristic
+ */
+static uint16_t vm_att_read_callback(hci_con_handle_t connection_handle, uint16_t att_handle,
+                                      uint16_t offset, uint8_t *buffer, uint16_t buffer_size)
+{
+    (void)connection_handle;
+    (void)att_handle;
+    (void)offset;
+    (void)buffer;
+    (void)buffer_size;
+    return 0;
+}
+
+/*
+ * BLE event handler
+ */
+static int vm_event_packet_handler(int event, u8 *packet, u16 size, u8 *ext_param)
+{
+    (void)packet;
+    (void)size;
+    (void)ext_param;
+    
+    switch (event) {
+        case GATT_COMM_EVENT_CONNECTION_COMPLETE:
+            vm_conn_handle = little_endian_read_16(packet, 0);
+            break;
+            
+        case GATT_COMM_EVENT_DISCONNECT_COMPLETE:
+            vm_security_on_disconnect();
+            vm_conn_handle = 0;
+            break;
+            
+        case GATT_COMM_EVENT_ENCRYPTION_CHANGE:
+            /* Encryption established - bonding may be complete */
+            /* CSRK extraction would happen here if needed */
+            break;
+            
+        default:
+            break;
+    }
+    
+    return 0;
+}
+
+/* GATT server configuration */
+static const gatt_server_cfg_t vm_server_cfg = {
+    .att_read_cb = &vm_att_read_callback,
+    .att_write_cb = &vm_att_write_callback,
+    .event_packet_handler = &vm_event_packet_handler,
+};
+
 int vm_ble_service_init(void)
 {
     int ret;
@@ -138,30 +185,30 @@ int vm_ble_service_init(void)
         return ret;
     }
     
-    /*
-     * Register GATT service with BLE stack
+    /* Register GATT profile with BLE stack */
+    ble_gatt_server_set_profile(vm_motor_profile_data, sizeof(vm_motor_profile_data));
+    
+    /* Note: The server configuration (vm_server_cfg) needs to be registered
+     * with the BLE stack during application initialization. This is typically
+     * done in the main application's GATT control block setup.
      * 
-     * This is SDK-specific code that needs to be adapted to JieLi's API.
-     * Typical steps:
-     * 1. Create service with UUID
-     * 2. Add characteristic with Write-Without-Response property
-     * 3. Set security requirements (Level 4)
-     * 4. Register write callback
+     * See SDK/apps/spp_and_le/examples/trans_data/ble_trans.c for reference:
      * 
-     * Example pseudo-code:
+     * static gatt_ctrl_t vm_gatt_control_block = {
+     *     .mtu_size = ATT_LOCAL_MTU_SIZE,
+     *     .cbuffer_size = ATT_SEND_CBUF_SIZE,
+     *     .multi_dev_flag = 0,
+     *     .server_config = &vm_server_cfg,
+     * };
      * 
-     * vm_service_handle = le_gatt_server_add_service(vm_service_uuid, 16);
-     * vm_char_handle = le_gatt_server_add_characteristic(
-     *     vm_service_handle,
-     *     vm_char_uuid, 16,
-     *     ATT_PROPERTY_WRITE_WITHOUT_RESPONSE,
-     *     ATT_SECURITY_AUTHENTICATED | ATT_SECURITY_ENCRYPTED,
-     *     NULL, 0
-     * );
-     * le_gatt_server_register_write_callback(vm_gatt_write_callback);
+     * Then call: ble_gatt_server_init(&vm_gatt_control_block);
      */
     
-    /* TODO: Add actual JieLi SDK GATT registration code here */
-    
     return 0;
+}
+
+/* Get server configuration for application integration */
+const gatt_server_cfg_t *vm_ble_get_server_config(void)
+{
+    return &vm_server_cfg;
 }
