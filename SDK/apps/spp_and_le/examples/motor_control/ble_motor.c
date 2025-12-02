@@ -148,4 +148,13 @@ void motor_ble_update_conn_param(void)
     }
 }
 
+/*
+ * Wrapper for SDK testbox/update compatibility
+ * The testbox_update.c expects ble_module_enable() to exist
+ */
+void ble_module_enable(u8 en)
+{
+    motor_ble_module_enable(en);
+}
+
 #endif /* CONFIG_APP_MOTOR_CONTROL */
