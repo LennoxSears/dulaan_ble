@@ -232,8 +232,8 @@ void bt_ble_exit(void)
     /* Disable module */
     motor_ble_module_enable(0);
     
-    /* Exit BLE communication stack */
-    ble_comm_exit();
+    /* Note: ble_comm_exit() is called by SDK's btstack_ble_exit() 
+     * in app_comm_ble.c, so we don't need to call it here */
 }
 
 #endif /* CONFIG_APP_MOTOR_CONTROL */
