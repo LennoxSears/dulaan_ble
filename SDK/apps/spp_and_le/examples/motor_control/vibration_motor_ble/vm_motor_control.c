@@ -1,5 +1,6 @@
 #include "vm_motor_control.h"
 #include "asm/mcpwm.h"
+#include "asm/gpio.h"
 #include "typedef.h"
 
 static uint16_t g_current_duty = 0;

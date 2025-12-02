@@ -3,7 +3,7 @@
 #include "vm_motor_control.h"
 
 /* JieLi SDK includes */
-#include "le_gatt_common.h"
+#include "gatt_common/le_gatt_common.h"
 #include "btstack/bluetooth.h"
 #include "btstack/btstack_typedef.h"
 
