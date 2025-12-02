@@ -5,14 +5,12 @@
 
 static uint16_t g_current_duty = 0;
 static pwm_ch_num_type g_pwm_channel = pwm_ch0;
-static pwm_timer_num_type g_pwm_timer = pwm_timer0;
 
 int vm_motor_init(void)
 {
     struct pwm_platform_data pwm_config = {
         .pwm_aligned_mode = pwm_edge_aligned,
         .pwm_ch_num = pwm_ch0,
-        .pwm_timer_num = pwm_timer0,
         .frequency = VM_MOTOR_PWM_FREQ_HZ,
         .duty = 0,  /* Start with 0% duty */
         .h_pin = VM_MOTOR_PWM_PIN,
@@ -24,7 +22,7 @@ int vm_motor_init(void)
     mcpwm_init(&pwm_config);
     
     /* Open PWM channel */
-    mcpwm_open(g_pwm_channel, g_pwm_timer);
+    mcpwm_open(g_pwm_channel);
     
     g_current_duty = 0;
     
@@ -39,7 +37,7 @@ int vm_motor_set_duty(uint16_t duty_cycle)
     }
     
     /* Set PWM duty cycle (0-10000 = 0.00%-100.00%) */
-    mcpwm_set_duty(g_pwm_channel, g_pwm_timer, duty_cycle);
+    mcpwm_set_duty(g_pwm_channel, duty_cycle);
     
     g_current_duty = duty_cycle;
     
@@ -57,7 +55,7 @@ void vm_motor_deinit(void)
     vm_motor_stop();
     
     /* Close PWM channel */
-    mcpwm_close(g_pwm_channel, g_pwm_timer);
+    mcpwm_close(g_pwm_channel);
 }
 
 uint16_t vm_motor_get_duty(void)

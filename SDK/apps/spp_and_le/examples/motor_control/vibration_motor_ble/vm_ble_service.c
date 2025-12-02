@@ -181,13 +181,13 @@ int vm_ble_service_init(void)
 }
 
 /* Get server configuration for application integration */
-const gatt_server_cfg_t *vm_ble_get_server_config(void)
+const void *vm_ble_get_server_config(void)
 {
     return &vm_server_cfg;
 }
 
 /* Get security manager configuration for application integration */
-const sm_cfg_t *vm_ble_get_sm_config(void)
+const void *vm_ble_get_sm_config(void)
 {
     return &vm_sm_config;
 }

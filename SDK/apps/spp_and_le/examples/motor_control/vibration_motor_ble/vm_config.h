@@ -62,10 +62,9 @@
 #define VM_DEBUG_ENABLE         1
 #endif
 
-/* Debug log macro */
+/* Debug log macro - uses SDK's log_info instead of printf */
 #if VM_DEBUG_ENABLE
-#include <stdio.h>
-#define VM_LOG(fmt, ...) printf("[VM_BLE] " fmt "\n", ##__VA_ARGS__)
+#define VM_LOG(fmt, ...) log_info("[VM_BLE] " fmt "\n", ##__VA_ARGS__)
 #else
 #define VM_LOG(fmt, ...)
 #endif

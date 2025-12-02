@@ -7,7 +7,6 @@
 
 #include "vm_ble_service.h"
 #include "vm_motor_control.h"
-#include <stdio.h>
 #include <stdint.h>
 
 /* JieLi SDK includes - uncomment when integrating */
