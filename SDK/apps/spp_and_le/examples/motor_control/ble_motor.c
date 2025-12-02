@@ -28,11 +28,27 @@
 /* Connection handle */
 static u16 motor_ble_con_handle = 0;
 
+/* Forward declarations */
+static int motor_event_packet_handler(int event, u8 *packet, u16 size, u8 *ext_param);
+static uint16_t motor_att_read_callback(hci_con_handle_t connection_handle, uint16_t att_handle, uint16_t offset, uint8_t *buffer, uint16_t buffer_size);
+static int motor_att_write_callback(hci_con_handle_t connection_handle, uint16_t att_handle, uint16_t transaction_mode, uint16_t offset, uint8_t *buffer, uint16_t buffer_size);
+
+/* GATT server configuration */
+static const gatt_server_cfg_t motor_server_init_cfg = {
+    .att_read_cb = &motor_att_read_callback,
+    .att_write_cb = &motor_att_write_callback,
+    .event_packet_handler = &motor_event_packet_handler,
+};
+
 /* GATT control block */
 static gatt_ctrl_t motor_gatt_control_block = {
     .mtu_size = 23,
     .cbuffer_size = 512,
     .multi_dev_flag = 0,
+    .server_config = &motor_server_init_cfg,
+    .client_config = NULL,
+    .sm_config = NULL,      /* Set by vm_ble_get_sm_config() at runtime */
+    .hci_cb_packet_handler = NULL,
 };
 
 /* Connection update parameters */
@@ -47,10 +63,14 @@ static const struct conn_update_param_t motor_connection_param_table[] = {
 static uint8_t motor_connection_update_cnt = 0;
 
 /*
- * BLE event handler
+ * BLE event handler - handles connection lifecycle
+ * This is the main event handler registered with the BLE stack
  */
 static int motor_event_packet_handler(int event, u8 *packet, u16 size, u8 *ext_param)
 {
+    (void)size;
+    (void)ext_param;
+    
     switch (event) {
         case GATT_COMM_EVENT_CONNECTION_COMPLETE:
             motor_ble_con_handle = little_endian_read_16(packet, 0);
@@ -83,6 +103,32 @@ static int motor_event_packet_handler(int event, u8 *packet, u16 size, u8 *ext_p
 }
 
 /*
+ * ATT read callback - delegates to vm_ble_service
+ */
+static uint16_t motor_att_read_callback(hci_con_handle_t connection_handle, uint16_t att_handle, uint16_t offset, uint8_t *buffer, uint16_t buffer_size)
+{
+    /* Get the vm_ble_service's server config and call its read callback */
+    const gatt_server_cfg_t *vm_cfg = (const gatt_server_cfg_t *)vm_ble_get_server_config();
+    if (vm_cfg && vm_cfg->att_read_cb) {
+        return vm_cfg->att_read_cb(connection_handle, att_handle, offset, buffer, buffer_size);
+    }
+    return 0;
+}
+
+/*
+ * ATT write callback - delegates to vm_ble_service
+ */
+static int motor_att_write_callback(hci_con_handle_t connection_handle, uint16_t att_handle, uint16_t transaction_mode, uint16_t offset, uint8_t *buffer, uint16_t buffer_size)
+{
+    /* Get the vm_ble_service's server config and call its write callback */
+    const gatt_server_cfg_t *vm_cfg = (const gatt_server_cfg_t *)vm_ble_get_server_config();
+    if (vm_cfg && vm_cfg->att_write_cb) {
+        return vm_cfg->att_write_cb(connection_handle, att_handle, transaction_mode, offset, buffer, buffer_size);
+    }
+    return 0;
+}
+
+/*
  * Connection parameter update request
  */
 static void motor_send_connetion_update_deal(void)
@@ -109,11 +155,10 @@ void motor_ble_module_enable(u8 en)
             return;
         }
 
-        /* Use our GATT and security configuration */
-        motor_gatt_control_block.server_config = vm_ble_get_server_config();
+        /* Set security configuration from vm_ble_service */
         motor_gatt_control_block.sm_config = vm_ble_get_sm_config();
 
-        /* Initialize BLE stack */
+        /* Initialize BLE stack with our server config (which delegates to vm_ble_service) */
         ble_comm_init(&motor_gatt_control_block);
 
         log_info("Motor BLE service initialized (LESC + Just-Works)\n");
@@ -155,6 +200,15 @@ void motor_ble_update_conn_param(void)
 void ble_module_enable(u8 en)
 {
     motor_ble_module_enable(en);
+}
+
+/*
+ * BLE pre-initialization - called before BLE stack starts
+ */
+void bt_ble_before_start_init(void)
+{
+    log_info("bt_ble_before_start_init\n");
+    /* Early initialization can go here if needed */
 }
 
 /*
