@@ -151,7 +151,8 @@ void motor_ble_module_enable(u8 en)
         /* BLE stack already initialized in bt_ble_before_start_init */
         log_info("Motor BLE service ready\n");
     } else {
-        ble_comm_exit();
+        /* Disable handled in bt_ble_exit() */
+        log_info("Motor BLE service disabled\n");
     }
 }
 
@@ -227,7 +228,12 @@ void bt_ble_init(void)
 void bt_ble_exit(void)
 {
     log_info("bt_ble_exit\n");
+    
+    /* Disable module */
     motor_ble_module_enable(0);
+    
+    /* Exit BLE communication stack */
+    ble_comm_exit();
 }
 
 #endif /* CONFIG_APP_MOTOR_CONTROL */

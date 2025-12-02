@@ -15,8 +15,8 @@
 #include "app_comm_bt.h"
 #include "ble_motor.h"
 
-#define LOG_TAG_CONST       MOTOR_CONTROL
-#define LOG_TAG             "[MOTOR_CONTROL]"
+#define LOG_TAG_CONST       MOTOR_APP
+#define LOG_TAG             "[MOTOR_APP]"
 #define LOG_ERROR_ENABLE
 #define LOG_DEBUG_ENABLE
 #define LOG_INFO_ENABLE
