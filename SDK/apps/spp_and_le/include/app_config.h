@@ -18,7 +18,8 @@
 
 #define TCFG_MEDIA_LIB_USE_MALLOC		    1
 //apps example 选择,只能选1个,要配置对应的board_config.h
-#define CONFIG_APP_SPP_LE                 1 //SPP + LE or LE's client
+#define CONFIG_APP_MOTOR_CONTROL          1 //Vibration Motor BLE Control (LESC + Just-Works)
+#define CONFIG_APP_SPP_LE                 0 //SPP + LE or LE's client
 #define CONFIG_APP_FTMS                   0 //FTMS
 #define CONFIG_APP_FINDMY                 0 //FINDMY
 #define CONFIG_APP_MULTI                  0 //蓝牙LE多连 + spp

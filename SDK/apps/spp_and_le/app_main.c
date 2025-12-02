@@ -154,7 +154,11 @@ void app_main()
 
     init_intent(&it);
 
-#if CONFIG_APP_SPP_LE
+#if CONFIG_APP_MOTOR_CONTROL
+    it.name = "motor_control";
+    it.action = ACTION_MOTOR_MAIN;
+
+#elif CONFIG_APP_SPP_LE
     it.name = "spp_le";
     it.action = ACTION_SPPLE_MAIN;
 
