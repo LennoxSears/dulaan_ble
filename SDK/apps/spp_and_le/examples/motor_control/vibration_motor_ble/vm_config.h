@@ -1,6 +1,8 @@
 #ifndef VM_CONFIG_H
 #define VM_CONFIG_H
 
+#include "asm/gpio.h"
+
 /*
  * Vibration Motor BLE Protocol Configuration
  * LESC + Just-Works - No application-layer security

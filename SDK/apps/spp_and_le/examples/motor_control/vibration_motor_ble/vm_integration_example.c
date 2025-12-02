@@ -43,11 +43,13 @@ void app_ble_setup_gatt_server(void)
         .cbuffer_size = 512,
         .multi_dev_flag = 0,
         .server_config = vm_ble_get_server_config(),  /* Get our GATT config */
+        .client_config = NULL,  /* No GATT client needed */
         .sm_config = vm_ble_get_sm_config(),  /* Get LESC + Just-Works config */
+        .hci_cb_packet_handler = NULL,  /* No HCI callback needed */
     };
     
-    /* Initialize GATT server with our configuration */
-    ble_gatt_server_init(&gatt_control);
+    /* Initialize BLE communication with our configuration */
+    ble_comm_init(&gatt_control);
 }
 
 /*
@@ -55,20 +57,20 @@ void app_ble_setup_gatt_server(void)
  */
 void app_ble_setup_advertising(void)
 {
-    /*
-     * Include service UUID in advertising data for filtering
-     * 
-     * Example:
-     * uint8_t adv_data[] = {
-     *     // Flags
-     *     0x02, 0x01, 0x06,
-     *     // Complete 128-bit Service UUID
-     *     0x11, 0x07,
-     *     VM_SERVICE_UUID_128
-     * };
-     * 
-     * ble_set_adv_data(adv_data, sizeof(adv_data));
-     */
+    /* Include service UUID in advertising data for filtering */
+    static const uint8_t adv_data[] = {
+        /* Flags */
+        0x02, 0x01, 0x06,
+        /* Complete 128-bit Service UUID */
+        0x11, 0x07,
+        VM_SERVICE_UUID_128
+    };
+    
+    /* Set advertising data (uncomment when integrating) */
+    /* ble_set_adv_data(adv_data, sizeof(adv_data)); */
+    
+    /* Set device name (uncomment when integrating) */
+    /* ble_set_device_name(VM_DEVICE_NAME, strlen(VM_DEVICE_NAME)); */
 }
 
 /*
@@ -80,6 +82,18 @@ void app_debug_vm_status(void)
     printf("  Motor duty: %u.%02u%%\n", 
            vm_motor_get_duty() / 100,
            vm_motor_get_duty() % 100);
+}
+
+/*
+ * Step 5: Cleanup on application shutdown
+ */
+void app_bluetooth_shutdown(void)
+{
+    /* Cleanup VM BLE service */
+    vm_ble_service_deinit();
+    
+    /* Cleanup BLE stack (uncomment when integrating) */
+    /* ble_comm_exit(); */
 }
 
 /*

@@ -29,6 +29,12 @@
 int vm_ble_service_init(void);
 
 /**
+ * Deinitialize the vibration motor BLE service
+ * Cleans up motor control resources
+ */
+void vm_ble_service_deinit(void);
+
+/**
  * Get GATT server configuration for application integration
  * This should be passed to the application's gatt_ctrl_t structure
  * @return Pointer to server configuration

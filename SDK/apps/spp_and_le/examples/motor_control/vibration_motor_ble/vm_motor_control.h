@@ -29,6 +29,12 @@ int vm_motor_set_duty(uint16_t duty_cycle);
 void vm_motor_stop(void);
 
 /**
+ * Deinitialize motor control
+ * Stops motor and closes PWM channel
+ */
+void vm_motor_deinit(void);
+
+/**
  * Get current duty cycle
  * @return Current duty cycle 0-10000
  */

@@ -12,9 +12,12 @@ V3.0 - Typical BLE security, no application-layer crypto
 - `vm_motor_control.h` - PWM motor control API
 - `vm_motor_control.c` - Motor control implementation
 - `vm_config.h` - Hardware configuration
+- `vm_integration_example.c` - Integration example code
+- `Makefile.include` - Build system integration
+- `INTEGRATION_GUIDE.md` - Detailed integration instructions
 
 ## Integration
-Add these files to your AC632N project and call `vm_ble_service_init()` from your main application.
+See `INTEGRATION_GUIDE.md` for detailed instructions, or refer to `vm_integration_example.c` for code examples.
 
 ## Security Features
 All security is handled by the BLE stack:

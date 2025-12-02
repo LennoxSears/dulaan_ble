@@ -6,6 +6,8 @@
 #include "gatt_common/le_gatt_common.h"
 #include "btstack/bluetooth.h"
 #include "btstack/btstack_typedef.h"
+#include "le/sm.h"
+#include "le/le_user.h"
 
 /* Logging */
 #define log_info(fmt, ...)  printf("[VM_BLE] " fmt, ##__VA_ARGS__)
@@ -17,6 +19,11 @@ int vm_ble_handle_write(uint16_t conn_handle, const uint8_t *data, uint16_t len)
     int ret;
     
     (void)conn_handle;
+    
+    /* Validate data pointer */
+    if (!data) {
+        return VM_ERR_INVALID_LENGTH;
+    }
     
     /* Validate packet length */
     if (len != VM_PACKET_SIZE) {
@@ -96,6 +103,10 @@ static int vm_event_packet_handler(int event, u8 *packet, u16 size, u8 *ext_para
     (void)size;
     (void)ext_param;
     
+    if (!packet) {
+        return 0;
+    }
+    
     switch (event) {
         case GATT_COMM_EVENT_CONNECTION_COMPLETE:
             log_info("Connected: handle=%04x\n", little_endian_read_16(packet, 0));
@@ -153,17 +164,17 @@ int vm_ble_service_init(void)
      * with the BLE stack during application initialization. This is typically
      * done in the main application's GATT control block setup.
      * 
-     * See SDK/apps/spp_and_le/examples/trans_data/ble_trans.c for reference:
+     * Example integration:
      * 
      * static gatt_ctrl_t vm_gatt_control_block = {
-     *     .mtu_size = ATT_LOCAL_MTU_SIZE,
-     *     .cbuffer_size = ATT_SEND_CBUF_SIZE,
+     *     .mtu_size = 23,
+     *     .cbuffer_size = 512,
      *     .multi_dev_flag = 0,
      *     .server_config = vm_ble_get_server_config(),
      *     .sm_config = vm_ble_get_sm_config(),
      * };
      * 
-     * Then call: ble_gatt_server_init(&vm_gatt_control_block);
+     * Then call: ble_comm_init(&vm_gatt_control_block);
      */
     
     return 0;
@@ -179,4 +190,15 @@ const gatt_server_cfg_t *vm_ble_get_server_config(void)
 const sm_cfg_t *vm_ble_get_sm_config(void)
 {
     return &vm_sm_config;
+}
+
+/* Cleanup function for application shutdown */
+void vm_ble_service_deinit(void)
+{
+    /* Deinitialize motor control */
+    vm_motor_deinit();
+    
+    /* Note: BLE stack cleanup (ble_comm_exit) should be called
+     * by the main application during shutdown, not by individual services.
+     */
 }
