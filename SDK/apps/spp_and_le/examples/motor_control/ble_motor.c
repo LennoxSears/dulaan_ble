@@ -148,20 +148,8 @@ void motor_ble_module_enable(u8 en)
     log_info("BLE module %s\n", en ? "enable" : "disable");
 
     if (en) {
-        /* Initialize our motor control service */
-        int ret = vm_ble_service_init();
-        if (ret != 0) {
-            log_info("Motor service init failed: %d\n", ret);
-            return;
-        }
-
-        /* Set security configuration from vm_ble_service */
-        motor_gatt_control_block.sm_config = vm_ble_get_sm_config();
-
-        /* Initialize BLE stack with our server config (which delegates to vm_ble_service) */
-        ble_comm_init(&motor_gatt_control_block);
-
-        log_info("Motor BLE service initialized (LESC + Just-Works)\n");
+        /* BLE stack already initialized in bt_ble_before_start_init */
+        log_info("Motor BLE service ready\n");
     } else {
         ble_comm_exit();
     }
@@ -204,20 +192,33 @@ void ble_module_enable(u8 en)
 
 /*
  * BLE pre-initialization - called before BLE stack starts
+ * This is where ble_comm_init should be called (like trans_data)
  */
 void bt_ble_before_start_init(void)
 {
     log_info("bt_ble_before_start_init\n");
-    /* Early initialization can go here if needed */
+    
+    /* Initialize motor control service */
+    int ret = vm_ble_service_init();
+    if (ret != 0) {
+        log_info("Motor service init failed: %d\n", ret);
+        return;
+    }
+    
+    /* Set security configuration from vm_ble_service */
+    motor_gatt_control_block.sm_config = vm_ble_get_sm_config();
+    
+    /* Initialize BLE communication stack */
+    ble_comm_init(&motor_gatt_control_block);
 }
 
 /*
- * BLE initialization - called by SDK's app_comm_ble.c
+ * BLE initialization - called by SDK's app_comm_ble.c after stack starts
  */
 void bt_ble_init(void)
 {
     log_info("bt_ble_init\n");
-    motor_ble_module_enable(1);
+    /* Stack is now running, can do post-init tasks here if needed */
 }
 
 /*
