@@ -157,4 +157,22 @@ void ble_module_enable(u8 en)
     motor_ble_module_enable(en);
 }
 
+/*
+ * BLE initialization - called by SDK's app_comm_ble.c
+ */
+void bt_ble_init(void)
+{
+    log_info("bt_ble_init\n");
+    motor_ble_module_enable(1);
+}
+
+/*
+ * BLE exit - called by SDK's app_comm_ble.c
+ */
+void bt_ble_exit(void)
+{
+    log_info("bt_ble_exit\n");
+    motor_ble_module_enable(0);
+}
+
 #endif /* CONFIG_APP_MOTOR_CONTROL */

@@ -30,6 +30,9 @@
 #include "key_event_deal.h"
 
 extern void rtc_alarm_set_timer(u32 seconds);
+extern void midi_paly_test(u32 key);
+#endif/*TCFG_AUDIO_ENABLE*/
+
 /* Motor BLE disconnect function */
 static void motor_disconnect(void)
 {
@@ -37,9 +40,6 @@ static void motor_disconnect(void)
         ble_op_disconnect(motor_ble_get_con_handle());
     }
 }
-extern void midi_paly_test(u32 key);
-#endif/*TCFG_AUDIO_ENABLE*/
-
 
 #if CONFIG_APP_MOTOR_CONTROL
 
