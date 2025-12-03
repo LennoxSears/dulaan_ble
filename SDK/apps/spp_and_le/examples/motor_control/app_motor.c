@@ -14,6 +14,7 @@
 #include "app_power_manage.h"
 #include "app_comm_bt.h"
 #include "ble_motor.h"
+#include "btstack/le/ble_api.h"
 
 #define LOG_TAG             "[MOTOR_APP]"
 #define LOG_ERROR_ENABLE
