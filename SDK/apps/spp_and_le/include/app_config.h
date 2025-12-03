@@ -63,6 +63,7 @@
 #define CONFIG_BT_SM_SUPPORT_ENABLE        1 //配置是否支持加密 (LESC)
 #define CONFIG_BT_GATT_CLIENT_NUM          0 //配置主机client个数
 #define CONFIG_BT_GATT_SERVER_NUM          1 //配置从机server个数
+#define CONFIG_BT_GATT_CONNECTION_NUM      (CONFIG_BT_GATT_SERVER_NUM + CONFIG_BT_GATT_CLIENT_NUM) //配置连接个数
 
 #elif CONFIG_APP_SPP_LE
 //配置双模同名字，同地址
