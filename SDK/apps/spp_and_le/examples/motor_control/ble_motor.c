@@ -28,6 +28,11 @@
 /* Connection handle */
 static u16 motor_ble_con_handle = 0;
 
+/* Advertising data */
+static u8 motor_adv_data[31];
+static u8 motor_scan_rsp_data[31];
+static adv_cfg_t motor_server_adv_config;
+
 /* Forward declarations */
 static int motor_event_packet_handler(int event, u8 *packet, u16 size, u8 *ext_param);
 static uint16_t motor_att_read_callback(hci_con_handle_t connection_handle, uint16_t att_handle, uint16_t offset, uint8_t *buffer, uint16_t buffer_size);
@@ -129,6 +134,84 @@ static int motor_att_write_callback(hci_con_handle_t connection_handle, uint16_t
 }
 
 /*
+ * Setup advertising data
+ */
+static int motor_make_set_adv_data(void)
+{
+    u8 *buf = motor_adv_data;
+    u8 offset = 0;
+    
+    /* Flags */
+    buf[offset++] = 2;
+    buf[offset++] = 0x01;  /* Flags type */
+    buf[offset++] = 0x06;  /* LE General Discoverable, BR/EDR not supported */
+    
+    /* Complete local name */
+    u8 name_len = strlen("VibMotor");
+    buf[offset++] = name_len + 1;
+    buf[offset++] = 0x09;  /* Complete local name type */
+    memcpy(&buf[offset], "VibMotor", name_len);
+    offset += name_len;
+    
+    motor_server_adv_config.adv_data_len = offset;
+    motor_server_adv_config.adv_data = motor_adv_data;
+    
+    return 0;
+}
+
+/*
+ * Setup scan response data
+ */
+static int motor_make_set_rsp_data(void)
+{
+    u8 *buf = motor_scan_rsp_data;
+    u8 offset = 0;
+    
+    /* 128-bit Service UUID */
+    buf[offset++] = 17;
+    buf[offset++] = 0x07;  /* Complete list of 128-bit UUIDs */
+    /* Service UUID: 9A501A2D-594F-4E2B-B123-5F739A2D594F (little-endian) */
+    buf[offset++] = 0x4F;
+    buf[offset++] = 0x59;
+    buf[offset++] = 0x2D;
+    buf[offset++] = 0x9A;
+    buf[offset++] = 0x73;
+    buf[offset++] = 0x5F;
+    buf[offset++] = 0x23;
+    buf[offset++] = 0xB1;
+    buf[offset++] = 0x2B;
+    buf[offset++] = 0x4E;
+    buf[offset++] = 0x4F;
+    buf[offset++] = 0x59;
+    buf[offset++] = 0x2D;
+    buf[offset++] = 0x1A;
+    buf[offset++] = 0x50;
+    buf[offset++] = 0x9A;
+    
+    motor_server_adv_config.rsp_data_len = offset;
+    motor_server_adv_config.rsp_data = motor_scan_rsp_data;
+    
+    return 0;
+}
+
+/*
+ * Configure advertising
+ */
+static void motor_adv_config_set(void)
+{
+    motor_make_set_adv_data();
+    motor_make_set_rsp_data();
+    
+    motor_server_adv_config.adv_interval = 160;  /* 100ms */
+    motor_server_adv_config.adv_auto_do = 1;     /* Auto start advertising */
+    motor_server_adv_config.adv_type = ADV_IND;  /* Connectable undirected */
+    motor_server_adv_config.adv_channel = ADV_CHANNEL_ALL;
+    memset(motor_server_adv_config.direct_address_info, 0, 7);
+    
+    ble_gatt_server_set_adv_config(&motor_server_adv_config);
+}
+
+/*
  * Connection parameter update request
  */
 static void motor_send_connetion_update_deal(void)
@@ -211,6 +294,9 @@ void bt_ble_before_start_init(void)
     
     /* Initialize BLE communication stack */
     ble_comm_init(&motor_gatt_control_block);
+    
+    /* Setup advertising */
+    motor_adv_config_set();
 }
 
 /*
