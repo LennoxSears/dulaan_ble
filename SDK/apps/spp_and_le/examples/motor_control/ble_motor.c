@@ -271,7 +271,25 @@ void motor_ble_update_conn_param(void)
  */
 void ble_module_enable(u8 en)
 {
-    motor_ble_module_enable(en);
+    ble_comm_module_enable(en);
+}
+
+/*
+ * Motor server initialization - sets up GATT profile and advertising
+ */
+static void motor_server_init(void)
+{
+    log_info("motor_server_init\n");
+    
+    /* Initialize motor control service */
+    int ret = vm_ble_service_init();
+    if (ret != 0) {
+        log_info("Motor service init failed: %d\n", ret);
+        return;
+    }
+    
+    /* Setup advertising */
+    motor_adv_config_set();
 }
 
 /*
@@ -282,21 +300,11 @@ void bt_ble_before_start_init(void)
 {
     log_info("bt_ble_before_start_init\n");
     
-    /* Initialize motor control service */
-    int ret = vm_ble_service_init();
-    if (ret != 0) {
-        log_info("Motor service init failed: %d\n", ret);
-        return;
-    }
-    
     /* Set security configuration from vm_ble_service */
     motor_gatt_control_block.sm_config = vm_ble_get_sm_config();
     
     /* Initialize BLE communication stack */
     ble_comm_init(&motor_gatt_control_block);
-    
-    /* Setup advertising */
-    motor_adv_config_set();
 }
 
 /*
@@ -305,7 +313,12 @@ void bt_ble_before_start_init(void)
 void bt_ble_init(void)
 {
     log_info("bt_ble_init\n");
-    /* Stack is now running, can do post-init tasks here if needed */
+    
+    /* Initialize server (profile + advertising) */
+    motor_server_init();
+    
+    /* Enable BLE module */
+    ble_comm_module_enable(1);
 }
 
 /*
