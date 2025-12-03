@@ -199,6 +199,8 @@ static void motor_adv_config_set(void)
     motor_server_adv_config.adv_type = ADV_IND;  /* Connectable undirected */
     motor_server_adv_config.adv_channel = ADV_CHANNEL_ALL;
     memset(motor_server_adv_config.direct_address_info, 0, 7);
+    motor_server_adv_config.set_local_addr_tag = 0;  /* Use default address */
+    memset(motor_server_adv_config.local_address_info, 0, 7);
     
     if (ret) {
         log_info("motor_adv_setup_init fail!!!\n");
@@ -315,11 +317,14 @@ void bt_ble_init(void)
     /* Set device name */
     ble_comm_set_config_name("VibMotor", 1);
     
+    /* Reset connection handle */
+    motor_ble_con_handle = 0;
+    
     /* Initialize server (profile + advertising) */
     motor_server_init();
     
-    /* Enable BLE module */
-    ble_comm_module_enable(1);
+    /* Enable BLE module - starts advertising */
+    ble_module_enable(1);
 }
 
 /*
