@@ -138,21 +138,25 @@ static int motor_att_write_callback(hci_con_handle_t connection_handle, uint16_t
  */
 static int motor_make_set_adv_data(void)
 {
-    u8 *buf = motor_adv_data;
     u8 offset = 0;
+    u8 *buf = motor_adv_data;
     
-    /* Flags */
-    buf[offset++] = 2;
-    buf[offset++] = 0x01;  /* Flags type */
-    buf[offset++] = 0x06;  /* LE General Discoverable, BR/EDR not supported */
+    /* Flags - LE General Discoverable, BR/EDR not supported */
+    offset += make_eir_packet_val(&buf[offset], offset, HCI_EIR_DATATYPE_FLAGS, 
+                                   FLAGS_GENERAL_DISCOVERABLE_MODE | FLAGS_EDR_NOT_SUPPORTED, 1);
     
     /* Complete local name */
-    u8 name_len = strlen("VibMotor");
-    buf[offset++] = name_len + 1;
-    buf[offset++] = 0x09;  /* Complete local name type */
-    memcpy(&buf[offset], "VibMotor", name_len);
-    offset += name_len;
+    char *gap_name = ble_comm_get_gap_name();
+    u8 name_len = strlen(gap_name);
+    offset += make_eir_packet_data(&buf[offset], offset, HCI_EIR_DATATYPE_COMPLETE_LOCAL_NAME, 
+                                    (void *)gap_name, name_len);
     
+    if (offset > 31) {
+        log_info("motor_adv_data overflow: %d\n", offset);
+        return -1;
+    }
+    
+    log_info("motor_adv_data(%d):", offset);
     motor_server_adv_config.adv_data_len = offset;
     motor_server_adv_config.adv_data = motor_adv_data;
     
@@ -164,29 +168,16 @@ static int motor_make_set_adv_data(void)
  */
 static int motor_make_set_rsp_data(void)
 {
-    u8 *buf = motor_scan_rsp_data;
     u8 offset = 0;
+    u8 *buf = motor_scan_rsp_data;
     
-    /* 128-bit Service UUID */
-    buf[offset++] = 17;
-    buf[offset++] = 0x07;  /* Complete list of 128-bit UUIDs */
-    /* Service UUID: 9A501A2D-594F-4E2B-B123-5F739A2D594F (little-endian) */
-    buf[offset++] = 0x4F;
-    buf[offset++] = 0x59;
-    buf[offset++] = 0x2D;
-    buf[offset++] = 0x9A;
-    buf[offset++] = 0x73;
-    buf[offset++] = 0x5F;
-    buf[offset++] = 0x23;
-    buf[offset++] = 0xB1;
-    buf[offset++] = 0x2B;
-    buf[offset++] = 0x4E;
-    buf[offset++] = 0x4F;
-    buf[offset++] = 0x59;
-    buf[offset++] = 0x2D;
-    buf[offset++] = 0x1A;
-    buf[offset++] = 0x50;
-    buf[offset++] = 0x9A;
+    /* For now, keep scan response empty or minimal */
+    /* Service UUID is in GATT profile, not needed in scan response */
+    
+    if (offset > 31) {
+        log_info("motor_rsp_data overflow: %d\n", offset);
+        return -1;
+    }
     
     motor_server_adv_config.rsp_data_len = offset;
     motor_server_adv_config.rsp_data = motor_scan_rsp_data;
@@ -199,16 +190,23 @@ static int motor_make_set_rsp_data(void)
  */
 static void motor_adv_config_set(void)
 {
-    motor_make_set_adv_data();
-    motor_make_set_rsp_data();
+    int ret = 0;
+    ret |= motor_make_set_adv_data();
+    ret |= motor_make_set_rsp_data();
     
-    motor_server_adv_config.adv_interval = 160;  /* 100ms */
+    motor_server_adv_config.adv_interval = 160;  /* 100ms (160 * 0.625ms) */
     motor_server_adv_config.adv_auto_do = 1;     /* Auto start advertising */
     motor_server_adv_config.adv_type = ADV_IND;  /* Connectable undirected */
     motor_server_adv_config.adv_channel = ADV_CHANNEL_ALL;
     memset(motor_server_adv_config.direct_address_info, 0, 7);
     
+    if (ret) {
+        log_info("motor_adv_setup_init fail!!!\n");
+        return;
+    }
+    
     ble_gatt_server_set_adv_config(&motor_server_adv_config);
+    log_info("motor_adv_config_set complete\n");
 }
 
 /*
@@ -313,6 +311,9 @@ void bt_ble_before_start_init(void)
 void bt_ble_init(void)
 {
     log_info("bt_ble_init\n");
+    
+    /* Set device name */
+    ble_comm_set_config_name("VibMotor", 1);
     
     /* Initialize server (profile + advertising) */
     motor_server_init();
