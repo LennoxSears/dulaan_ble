@@ -52,7 +52,19 @@
 //BLE做主机，使能是否支持搜索连接JL的测试盒
 #define SUPPORT_TEST_BOX_BLE_MASTER_TEST_EN	   0
 
-#if CONFIG_APP_SPP_LE
+#if CONFIG_APP_MOTOR_CONTROL
+//Motor Control BLE Configuration
+#define DOUBLE_BT_SAME_NAME                0 //同名字
+#define DOUBLE_BT_SAME_MAC                 0 //同地址
+#define CONFIG_BLE_HIGH_SPEED              0 //BLE提速模式
+
+//蓝牙BLE配置
+#define CONFIG_BT_GATT_COMMON_ENABLE       1 //配置使用gatt公共模块
+#define CONFIG_BT_SM_SUPPORT_ENABLE        1 //配置是否支持加密 (LESC)
+#define CONFIG_BT_GATT_CLIENT_NUM          0 //配置主机client个数
+#define CONFIG_BT_GATT_SERVER_NUM          1 //配置从机server个数
+
+#elif CONFIG_APP_SPP_LE
 //配置双模同名字，同地址
 #define DOUBLE_BT_SAME_NAME                0 //同名字
 #define DOUBLE_BT_SAME_MAC                 0 //同地址
