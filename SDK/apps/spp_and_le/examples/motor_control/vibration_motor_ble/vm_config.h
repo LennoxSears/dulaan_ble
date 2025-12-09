@@ -2,6 +2,7 @@
 #define VM_CONFIG_H
 
 #include "asm/gpio.h"
+#include "timer.h"
 
 /*
  * Vibration Motor BLE Protocol Configuration
@@ -12,14 +13,19 @@
 
 /* ========== Hardware Configuration ========== */
 
-/* PWM pin for motor control - override in board config if needed */
+/* PWM pin for motor control - uses TIMER3 PWM output */
 #ifndef VM_MOTOR_PWM_PIN
-#define VM_MOTOR_PWM_PIN        IO_PORTB_05
+#define VM_MOTOR_PWM_PIN        IO_PORTB_08  /* PB8 - connected to MOS transistor */
 #endif
 
-/* PWM frequency in Hz */
+/* Timer for PWM generation */
+#ifndef VM_MOTOR_TIMER
+#define VM_MOTOR_TIMER          JL_TIMER3
+#endif
+
+/* PWM frequency in Hz - manufacturer recommendation */
 #ifndef VM_MOTOR_PWM_FREQ_HZ
-#define VM_MOTOR_PWM_FREQ_HZ    20000
+#define VM_MOTOR_PWM_FREQ_HZ    1000  /* 1kHz */
 #endif
 
 /* ========== BLE Configuration ========== */

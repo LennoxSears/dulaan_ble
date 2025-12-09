@@ -1,7 +1,7 @@
 #ifndef VM_MOTOR_CONTROL_H
 #define VM_MOTOR_CONTROL_H
 
-#include <stdint.h>
+#include "typedef.h"
 #include "vm_config.h"
 
 /* Motor control configuration */
@@ -20,7 +20,7 @@ int vm_motor_init(void);
  * @param duty_cycle Duty cycle 0-10000 (0.00% to 100.00%)
  * @return 0 on success, negative on error
  */
-int vm_motor_set_duty(uint16_t duty_cycle);
+int vm_motor_set_duty(u16 duty_cycle);
 
 /**
  * Stop motor
@@ -38,6 +38,6 @@ void vm_motor_deinit(void);
  * Get current duty cycle
  * @return Current duty cycle 0-10000
  */
-uint16_t vm_motor_get_duty(void);
+u16 vm_motor_get_duty(void);
 
 #endif /* VM_MOTOR_CONTROL_H */
