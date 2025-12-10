@@ -13,7 +13,10 @@
 #define log_info(fmt, ...)  printf("[VM_BLE] " fmt, ##__VA_ARGS__)
 #define log_error(fmt, ...) printf("[VM_BLE_ERR] " fmt, ##__VA_ARGS__)
 
-int vm_ble_handle_write(uint16_t conn_handle, const uint8_t *data, uint16_t len)
+/* Connection handle for notifications */
+static uint16_t vm_connection_handle = 0;
+
+int vm_ble_handle_motor_write(uint16_t conn_handle, const uint8_t *data, uint16_t len)
 {
     uint16_t duty_cycle;
     int ret;
@@ -26,7 +29,7 @@ int vm_ble_handle_write(uint16_t conn_handle, const uint8_t *data, uint16_t len)
     }
     
     /* Validate packet length */
-    if (len != VM_PACKET_SIZE) {
+    if (len != VM_MOTOR_PACKET_SIZE) {
         return VM_ERR_INVALID_LENGTH;
     }
     
@@ -48,6 +51,62 @@ int vm_ble_handle_write(uint16_t conn_handle, const uint8_t *data, uint16_t len)
     return VM_ERR_OK;
 }
 
+/**
+ * Get battery level - placeholder implementation
+ * Application should override this function to read actual battery level
+ */
+__attribute__((weak)) uint8_t vm_ble_get_battery_level(void)
+{
+    /* TODO: Implement actual battery reading
+     * 
+     * Options:
+     * 1. Read ADC from battery voltage divider
+     * 2. Use SDK's battery monitoring API if available
+     * 3. Return cached value from periodic battery check
+     * 
+     * For now, return a placeholder value
+     */
+    return 85;  /* Placeholder: 85% battery */
+}
+
+int vm_ble_handle_device_info_write(uint16_t conn_handle, const uint8_t *data, uint16_t len)
+{
+    uint8_t response[VM_DEVICE_INFO_RESPONSE_SIZE];
+    
+    /* Validate data pointer */
+    if (!data) {
+        return VM_ERR_INVALID_LENGTH;
+    }
+    
+    /* Validate packet length */
+    if (len != VM_DEVICE_INFO_REQUEST_SIZE) {
+        return VM_ERR_INVALID_LENGTH;
+    }
+    
+    /* Validate protocol header and command */
+    if (data[0] != VM_DEVICE_INFO_HEADER || data[1] != VM_DEVICE_INFO_CMD) {
+        log_error("Invalid device info request: header=0x%02X cmd=0x%02X\n", data[0], data[1]);
+        return VM_ERR_INVALID_DUTY;  /* Reuse error code for invalid request */
+    }
+    
+    /* Build response packet */
+    response[0] = VM_DEVICE_INFO_HEADER;           /* Header: 0xB0 */
+    response[1] = VM_DEVICE_INFO_CMD;              /* CMD: 0x00 */
+    response[2] = 0x01;                            /* Motor count: 1 */
+    response[3] = VM_FIRMWARE_VERSION_LOW;         /* Firmware version low byte */
+    response[4] = VM_FIRMWARE_VERSION_HIGH;        /* Firmware version high byte */
+    response[5] = vm_ble_get_battery_level();      /* Battery level: 0-100% */
+    
+    log_info("Device info query: FW=%d.%d Battery=%d%%\n", 
+             response[4], response[3], response[5]);
+    
+    /* Send notification */
+    ble_op_att_send_data(conn_handle, ATT_CHARACTERISTIC_VM_DEVICE_INFO_VALUE_HANDLE,
+                         response, VM_DEVICE_INFO_RESPONSE_SIZE);
+    
+    return VM_ERR_OK;
+}
+
 /* 
  * GATT write callback - called by BLE stack when characteristic is written
  */
@@ -55,28 +114,47 @@ static int vm_att_write_callback(hci_con_handle_t connection_handle, uint16_t at
                                   uint16_t transaction_mode, uint16_t offset,
                                   uint8_t *buffer, uint16_t buffer_size)
 {
+    int ret;
+    
     (void)transaction_mode;
     (void)offset;
     
-    /* Check if this is our characteristic */
-    if (att_handle != ATT_CHARACTERISTIC_VM_MOTOR_CONTROL_VALUE_HANDLE) {
-        return 0;  /* Not our characteristic, let other handlers process it */
+    /* Handle motor control characteristic */
+    if (att_handle == ATT_CHARACTERISTIC_VM_MOTOR_CONTROL_VALUE_HANDLE) {
+        ret = vm_ble_handle_motor_write(connection_handle, buffer, buffer_size);
+        
+        /* Map error codes to ATT error codes */
+        switch (ret) {
+            case VM_ERR_OK:
+                return 0;
+            case VM_ERR_INVALID_LENGTH:
+                return 0x0D;  /* ATT_ERROR_INVALID_ATTRIBUTE_VALUE_LENGTH */
+            case VM_ERR_INVALID_DUTY:
+                return 0x0E;  /* ATT_ERROR_VALUE_NOT_ALLOWED */
+            default:
+                return 0x0E;
+        }
     }
     
-    /* Handle the write */
-    int ret = vm_ble_handle_write(connection_handle, buffer, buffer_size);
-    
-    /* Map error codes to ATT error codes */
-    switch (ret) {
-        case VM_ERR_OK:
-            return 0;
-        case VM_ERR_INVALID_LENGTH:
-            return 0x0D;  /* ATT_ERROR_INVALID_ATTRIBUTE_VALUE_LENGTH */
-        case VM_ERR_INVALID_DUTY:
-            return 0x0E;  /* ATT_ERROR_VALUE_NOT_ALLOWED */
-        default:
-            return 0x0E;
+    /* Handle device info characteristic */
+    if (att_handle == ATT_CHARACTERISTIC_VM_DEVICE_INFO_VALUE_HANDLE) {
+        ret = vm_ble_handle_device_info_write(connection_handle, buffer, buffer_size);
+        
+        /* Map error codes to ATT error codes */
+        switch (ret) {
+            case VM_ERR_OK:
+                return 0;
+            case VM_ERR_INVALID_LENGTH:
+                return 0x0D;  /* ATT_ERROR_INVALID_ATTRIBUTE_VALUE_LENGTH */
+            case VM_ERR_INVALID_DUTY:
+                return 0x0E;  /* ATT_ERROR_VALUE_NOT_ALLOWED */
+            default:
+                return 0x0E;
+        }
     }
+    
+    /* Not our characteristic, let other handlers process it */
+    return 0;
 }
 
 /*
@@ -109,11 +187,13 @@ static int vm_event_packet_handler(int event, u8 *packet, u16 size, u8 *ext_para
     
     switch (event) {
         case GATT_COMM_EVENT_CONNECTION_COMPLETE:
-            log_info("Connected: handle=%04x\n", little_endian_read_16(packet, 0));
+            vm_connection_handle = little_endian_read_16(packet, 0);
+            log_info("Connected: handle=%04x\n", vm_connection_handle);
             break;
             
         case GATT_COMM_EVENT_DISCONNECT_COMPLETE:
             log_info("Disconnected: handle=%04x\n", little_endian_read_16(packet, 0));
+            vm_connection_handle = 0;
             break;
             
         case GATT_COMM_EVENT_ENCRYPTION_CHANGE:
