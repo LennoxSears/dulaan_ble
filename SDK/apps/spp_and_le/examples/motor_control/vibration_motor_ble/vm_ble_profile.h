@@ -13,8 +13,7 @@
  *   Packet Format: 2 bytes (duty_cycle: 0-10000)
  * 
  * Device Info Characteristic UUID: 9A521A2D-594F-4E2B-B123-5F739A2D594F
- *   Property: Write, Notify
- *   Request: 2 bytes (header=0xB0, cmd=0x00)
+ *   Property: Read
  *   Response: 6 bytes (header, cmd, motor_count, fw_low, fw_high, battery)
  * 
  * Security: LESC + Just-Works (enforced by stack)
@@ -49,23 +48,20 @@ static const uint8_t vm_motor_profile_data[] = {
     0x4F, 0x59, 0x2D, 0x9A, 0x73, 0x5F, 0x23, 0xB1,
     0x2B, 0x4E, 0x4F, 0x59, 0x2D, 0x1A, 0x51, 0x9A,
 
-    /* CHARACTERISTIC, 9A521A2D-594F-4E2B-B123-5F739A2D594F, WRITE | NOTIFY | DYNAMIC */
-    // 0x0004 CHARACTERISTIC 9A521A2D... WRITE | NOTIFY | DYNAMIC
+    /* CHARACTERISTIC, 9A521A2D-594F-4E2B-B123-5F739A2D594F, READ | DYNAMIC */
+    // 0x0004 CHARACTERISTIC 9A521A2D... READ | DYNAMIC
     0x1b, 0x00, 0x02, 0x00, 0x04, 0x00, 0x03, 0x28,
-    0x18,  // Property: Write (0x08) | Notify (0x10)
+    0x02,  // Property: Read (0x02)
     0x05, 0x00,  // Value handle
     // UUID bytes (little-endian): 9A521A2D-594F-4E2B-B123-5F739A2D594F
     0x4F, 0x59, 0x2D, 0x9A, 0x73, 0x5F, 0x23, 0xB1,
     0x2B, 0x4E, 0x4F, 0x59, 0x2D, 0x1A, 0x52, 0x9A,
 
-    // 0x0005 VALUE 9A521A2D... WRITE | NOTIFY | DYNAMIC
-    0x16, 0x00, 0x18, 0x01, 0x05, 0x00,
+    // 0x0005 VALUE 9A521A2D... READ | DYNAMIC
+    0x16, 0x00, 0x02, 0x01, 0x05, 0x00,
     // UUID bytes (little-endian): 9A521A2D-594F-4E2B-B123-5F739A2D594F
     0x4F, 0x59, 0x2D, 0x9A, 0x73, 0x5F, 0x23, 0xB1,
     0x2B, 0x4E, 0x4F, 0x59, 0x2D, 0x1A, 0x52, 0x9A,
-
-    // 0x0006 CLIENT_CHARACTERISTIC_CONFIGURATION (for notifications)
-    0x08, 0x00, 0x0A, 0x01, 0x06, 0x00, 0x02, 0x29,
 
     // END
     0x00, 0x00,
@@ -74,6 +70,5 @@ static const uint8_t vm_motor_profile_data[] = {
 // Characteristic handles
 #define ATT_CHARACTERISTIC_VM_MOTOR_CONTROL_VALUE_HANDLE 0x0003
 #define ATT_CHARACTERISTIC_VM_DEVICE_INFO_VALUE_HANDLE   0x0005
-#define ATT_CHARACTERISTIC_VM_DEVICE_INFO_CLIENT_CONFIG_HANDLE 0x0006
 
 #endif /* VM_BLE_PROFILE_H */

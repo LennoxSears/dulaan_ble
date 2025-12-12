@@ -8,6 +8,7 @@
 #include "btstack/btstack_typedef.h"
 #include "le/sm.h"
 #include "le/le_user.h"
+#include "app_power_manage.h"  /* For get_vbat_percent() */
 
 /* Logging */
 #define log_info(fmt, ...)  printf("[VM_BLE] " fmt, ##__VA_ARGS__)
@@ -52,59 +53,25 @@ int vm_ble_handle_motor_write(uint16_t conn_handle, const uint8_t *data, uint16_
 }
 
 /**
- * Get battery level - placeholder implementation
- * Application should override this function to read actual battery level
+ * Get battery level - uses JieLi SDK power management
+ * This function uses the SDK's built-in battery monitoring system
+ * which is initialized by board_power_init() at startup
  */
-__attribute__((weak)) uint8_t vm_ble_get_battery_level(void)
+uint8_t vm_ble_get_battery_level(void)
 {
-    /* TODO: Implement actual battery reading
-     * 
-     * Options:
-     * 1. Read ADC from battery voltage divider
-     * 2. Use SDK's battery monitoring API if available
-     * 3. Return cached value from periodic battery check
-     * 
-     * For now, return a placeholder value
+    /* Use SDK's battery percentage function
+     * This reads from ADC channel AD_CH_VBAT and converts to 0-100%
+     * The SDK handles voltage divider compensation and battery curve
      */
-    return 85;  /* Placeholder: 85% battery */
-}
-
-int vm_ble_handle_device_info_write(uint16_t conn_handle, const uint8_t *data, uint16_t len)
-{
-    uint8_t response[VM_DEVICE_INFO_RESPONSE_SIZE];
+    extern u8 get_vbat_percent(void);
+    u8 battery_percent = get_vbat_percent();
     
-    /* Validate data pointer */
-    if (!data) {
-        return VM_ERR_INVALID_LENGTH;
+    /* Clamp to valid range (0-100) */
+    if (battery_percent > 100) {
+        battery_percent = 100;
     }
     
-    /* Validate packet length */
-    if (len != VM_DEVICE_INFO_REQUEST_SIZE) {
-        return VM_ERR_INVALID_LENGTH;
-    }
-    
-    /* Validate protocol header and command */
-    if (data[0] != VM_DEVICE_INFO_HEADER || data[1] != VM_DEVICE_INFO_CMD) {
-        log_error("Invalid device info request: header=0x%02X cmd=0x%02X\n", data[0], data[1]);
-        return VM_ERR_INVALID_DUTY;  /* Reuse error code for invalid request */
-    }
-    
-    /* Build response packet */
-    response[0] = VM_DEVICE_INFO_HEADER;           /* Header: 0xB0 */
-    response[1] = VM_DEVICE_INFO_CMD;              /* CMD: 0x00 */
-    response[2] = 0x01;                            /* Motor count: 1 */
-    response[3] = VM_FIRMWARE_VERSION_LOW;         /* Firmware version low byte */
-    response[4] = VM_FIRMWARE_VERSION_HIGH;        /* Firmware version high byte */
-    response[5] = vm_ble_get_battery_level();      /* Battery level: 0-100% */
-    
-    log_info("Device info query: FW=%d.%d Battery=%d%%\n", 
-             response[4], response[3], response[5]);
-    
-    /* Send notification */
-    ble_op_att_send_data(conn_handle, ATT_CHARACTERISTIC_VM_DEVICE_INFO_VALUE_HANDLE,
-                         response, VM_DEVICE_INFO_RESPONSE_SIZE);
-    
-    return VM_ERR_OK;
+    return battery_percent;
 }
 
 /* 
@@ -136,41 +103,48 @@ static int vm_att_write_callback(hci_con_handle_t connection_handle, uint16_t at
         }
     }
     
-    /* Handle device info characteristic */
-    if (att_handle == ATT_CHARACTERISTIC_VM_DEVICE_INFO_VALUE_HANDLE) {
-        ret = vm_ble_handle_device_info_write(connection_handle, buffer, buffer_size);
-        
-        /* Map error codes to ATT error codes */
-        switch (ret) {
-            case VM_ERR_OK:
-                return 0;
-            case VM_ERR_INVALID_LENGTH:
-                return 0x0D;  /* ATT_ERROR_INVALID_ATTRIBUTE_VALUE_LENGTH */
-            case VM_ERR_INVALID_DUTY:
-                return 0x0E;  /* ATT_ERROR_VALUE_NOT_ALLOWED */
-            default:
-                return 0x0E;
-        }
-    }
+    /* Device info is now read-only, no write handler needed */
     
     /* Not our characteristic, let other handlers process it */
     return 0;
 }
 
 /*
- * GATT read callback - not used for our write-only characteristic
+ * GATT read callback - handles device info reads
  */
 static uint16_t vm_att_read_callback(hci_con_handle_t connection_handle, uint16_t att_handle,
                                       uint16_t offset, uint8_t *buffer, uint16_t buffer_size)
 {
     (void)connection_handle;
-    (void)att_handle;
-    (void)offset;
-    (void)buffer;
-    (void)buffer_size;
     
-    /* Write-only characteristic, reads not supported */
-    return 0;  /* Return 0 bytes read */
+    /* Handle device info characteristic read */
+    if (att_handle == ATT_CHARACTERISTIC_VM_DEVICE_INFO_VALUE_HANDLE) {
+        /* Only support reading from offset 0 */
+        if (offset != 0) {
+            return 0;
+        }
+        
+        /* Validate buffer size */
+        if (buffer_size < VM_DEVICE_INFO_RESPONSE_SIZE) {
+            return 0;
+        }
+        
+        /* Build response packet */
+        buffer[0] = VM_DEVICE_INFO_HEADER;           /* Header: 0xB0 */
+        buffer[1] = VM_DEVICE_INFO_CMD;              /* CMD: 0x00 */
+        buffer[2] = 0x01;                            /* Motor count: 1 */
+        buffer[3] = VM_FIRMWARE_VERSION_LOW;         /* Firmware version low byte */
+        buffer[4] = VM_FIRMWARE_VERSION_HIGH;        /* Firmware version high byte */
+        buffer[5] = vm_ble_get_battery_level();      /* Battery level: 0-100% */
+        
+        log_info("Device info read: FW=%d.%d Battery=%d%%\\n", 
+                 buffer[4], buffer[3], buffer[5]);
+        
+        return VM_DEVICE_INFO_RESPONSE_SIZE;
+    }
+    
+    /* Not our characteristic */
+    return 0;
 }
 
 /*

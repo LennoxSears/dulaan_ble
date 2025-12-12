@@ -85,7 +85,8 @@ int vm_ble_handle_device_info_write(uint16_t conn_handle, const uint8_t *data, u
 
 /**
  * Get battery level (0-100%)
- * This function should be implemented by the application to read actual battery level
+ * Uses JieLi SDK's power management system (get_vbat_percent)
+ * Battery monitoring is initialized by board_power_init() at startup
  * @return Battery level percentage (0-100)
  */
 uint8_t vm_ble_get_battery_level(void);
