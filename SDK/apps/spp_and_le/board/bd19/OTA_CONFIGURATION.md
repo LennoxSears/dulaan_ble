@@ -44,32 +44,58 @@ Different OTA methods require different minimum VM sizes:
 
 **Current setting (68 KB)** supports all OTA methods including BLE RCSP upgrade.
 
-## Enabling OTA
+## OTA Status
 
-OTA is currently **disabled** in the application. To enable:
+OTA is currently **ENABLED** in the application.
 
-### Step 1: Enable OTA in Board Configuration
+### Current Configuration
 
-Edit: `SDK/apps/spp_and_le/board/bd19/board_ac632n_demo_global_build_cfg.h`
+File: `SDK/apps/spp_and_le/board/bd19/board_ac632n_demo_global_build_cfg.h`
 
 ```c
-// Change from:
-#define CONFIG_APP_OTA_ENABLE    0
-
-// To:
-#define CONFIG_APP_OTA_ENABLE    1
+#define CONFIG_APP_OTA_ENABLE    1       // ENABLED for BLE OTA updates
+#define CONFIG_FLASH_SIZE        FLASH_SIZE_512K  // Match actual hardware
 ```
 
-### Step 2: Rebuild Firmware
+This automatically enables:
+- `RCSP_BTMATE_EN = 1` (RCSP protocol support)
+- `RCSP_UPDATE_EN = 1` (OTA update support)
+- `UPDATE_MD5_ENABLE = 0` (MD5 check disabled)
+
+### To Rebuild Firmware
 
 ```bash
 cd SDK
 make ac632n_spp_and_le
 ```
 
-### Step 3: Flash to Device
+### To Flash to Device
 
 Use the JieLi download tool to flash the new firmware.
+
+## How to Use OTA
+
+### Quick Start
+
+1. **Build firmware** with OTA enabled (already done)
+2. **Flash to device** using JieLi download tool
+3. **Connect via BLE** to device (name: "VibMotor")
+4. **Use JieLi OTA app** or custom app to send firmware update
+5. **Device reboots** automatically with new firmware
+
+### OTA Service UUID
+
+The RCSP OTA service uses JieLi's proprietary protocol. You can:
+- Use **JieLi's official OTA app** (recommended for testing)
+- Integrate **RCSP protocol** into your custom app
+- Use **JieLi's SDK examples** as reference
+
+### Firmware File Format
+
+The OTA update file is generated during build:
+- File: `SDK/cpu/bd19/tools/download/jl_isd.ufw`
+- Format: JieLi UFW (Update Firmware) format
+- Contains: Firmware binary + metadata
 
 ## OTA Methods
 
@@ -111,22 +137,34 @@ Use the JieLi download tool to flash the new firmware.
 - VM size: 28 KB minimum
 - USB connection
 
-## Disabling OTA (Current State)
+## Disabling OTA
 
-OTA is currently disabled to save code space. The VM size is still set to 68 KB to:
-1. Remove build warnings
-2. Allow easy OTA enablement in future
-3. Provide space for user data storage
+If you want to disable OTA to save code space:
 
-If you want to reclaim the VM space:
+### Step 1: Disable in Board Configuration
 
-Edit: `SDK/cpu/bd19/tools/isd_config.ini`
+Edit: `SDK/apps/spp_and_le/board/bd19/board_ac632n_demo_global_build_cfg.h`
+
+```c
+#define CONFIG_APP_OTA_ENABLE    0       // Disable OTA
+```
+
+### Step 2: (Optional) Reduce VM Size
+
+If you want to reclaim VM space, edit: `SDK/cpu/bd19/tools/isd_config.ini`
 
 ```ini
 VM_LEN = 8K;    # Minimum for basic operation
 ```
 
 This will reduce VM storage to 8 KB, which is sufficient for basic operation without OTA.
+
+### Step 3: Rebuild
+
+```bash
+cd SDK
+make ac632n_spp_and_le
+```
 
 ## Flash Space Analysis
 
