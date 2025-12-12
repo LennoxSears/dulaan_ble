@@ -7,9 +7,9 @@ The AC632N chip has the following flash configuration:
 ```
 Total Flash: 512 KB (0x80000)
 ├── Firmware: 232 KB (0x3A000)
-├── VM Storage: 68 KB (0x11000) - for OTA and data storage
+├── VM Storage: 80 KB (0x14000) - for OTA and data storage
 ├── BTIF Reserved: 4 KB (0x1000) - Bluetooth interface
-└── Remaining: ~208 KB
+└── Remaining: ~196 KB
 ```
 
 ## VM (Virtual Machine) Storage
@@ -26,9 +26,11 @@ File: `SDK/cpu/bd19/tools/isd_config.ini`
 ```ini
 [RESERVED_CONFIG]
 VM_ADR = 0;
-VM_LEN = 68K;    # Increased from 8K to support OTA
+VM_LEN = 80K;    # Increased to 80K to support all OTA methods
 VM_OPT = 1;
 ```
+
+**✅ CHANGE APPLIED**: VM_LEN increased from 68K to 80K to ensure sufficient space for all OTA methods.
 
 ### OTA Space Requirements
 
