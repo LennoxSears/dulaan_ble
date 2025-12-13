@@ -20,10 +20,10 @@ V3.0 - Typical BLE security, no application-layer crypto
 - `vm_config.h` - Hardware configuration (pin, timer, frequency)
 - `vm_integration_example.c` - Integration example code
 - `Makefile.include` - Build system integration
-- `INTEGRATION_GUIDE.md` - Detailed integration instructions
+- `README.md` - This file
 
 ## Integration
-See `INTEGRATION_GUIDE.md` for detailed instructions, or refer to `vm_integration_example.c` for code examples.
+Refer to `vm_integration_example.c` for code examples and integration patterns.
 
 ## Security Features
 All security is handled by the BLE stack:
@@ -39,17 +39,33 @@ All security is handled by the BLE stack:
 - **Format**: 2 bytes (duty_cycle: 0-10000, little-endian)
 
 ### Device Info Query (9A521A2D-594F-4E2B-B123-5F739A2D594F)
-- **Property**: Write, Notify
-- **Request**: 2 bytes (header=0xB0, cmd=0x00)
-- **Response**: 6 bytes (header, cmd, motor_count, fw_low, fw_high, battery)
+- **Property**: Write Without Response + Notify
+- **Request**: 1 byte (0xB0 command)
+- **Response**: 6 bytes (header=0xB0, cmd=0x00, motor_count, fw_low, fw_high, battery)
 
 ## Battery Level Integration
 
-The device info query returns battery level (0-100%). To integrate actual battery reading:
+The device info query returns battery level (0-100%). 
 
-### Option 1: Override the weak function
+**Current implementation**: Returns fake value (85%) for testing.
+
+To integrate real battery monitoring, modify `vm_ble_get_battery_level()` in `vm_ble_service.c`:
+
+### Option 1: Use SDK battery API
 ```c
-// In your application code
+uint8_t vm_ble_get_battery_level(void)
+{
+    extern u8 get_vbat_percent(void);
+    u8 battery_percent = get_vbat_percent();
+    if (battery_percent > 100) {
+        battery_percent = 100;
+    }
+    return battery_percent;
+}
+```
+
+### Option 2: Custom ADC reading
+```c
 uint8_t vm_ble_get_battery_level(void)
 {
     // Read ADC from battery voltage divider
@@ -60,24 +76,6 @@ uint8_t vm_ble_get_battery_level(void)
     if (adc_value <= 3000) return 0;
     return (uint8_t)((adc_value - 3000) * 100 / 1200);
 }
-```
-
-### Option 2: Use SDK battery API (if available)
-```c
-uint8_t vm_ble_get_battery_level(void)
-{
-    return get_vbat_percent();  // SDK function
-}
-```
-
-### Option 3: Periodic update with cached value
-```c
-static uint8_t cached_battery_level = 100;
-
-void battery_monitor_task(void)
-{
-    // Called periodically (e.g., every 60 seconds)
-    cached_battery_level = read_battery_adc_and_convert();
 }
 
 uint8_t vm_ble_get_battery_level(void)
