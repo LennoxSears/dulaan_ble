@@ -40,7 +40,7 @@ All security is handled by the BLE stack:
 
 ### Device Info Query (9A521A2D-594F-4E2B-B123-5F739A2D594F)
 - **Property**: Write + Notify
-- **Request**: 1 byte (0xB0 command)
+- **Request**: 2 bytes (0xB0 0x00 command)
 - **Response**: 6 bytes (header=0xB0, cmd=0x00, motor_count, fw_low, fw_high, battery)
 
 ## Battery Level Integration

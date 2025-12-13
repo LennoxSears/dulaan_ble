@@ -97,12 +97,12 @@ io_capabilities = IO_CAPABILITY_NO_INPUT_NO_OUTPUT;  // Just-Works
 #### Characteristic 2: Device Info (9A52...)
 - **UUID**: `9A521A2D-594F-4E2B-B123-5F739A2D594F`
 - **Property**: Write + Notify
-- **Request**: 1 byte (0xB0)
+- **Request**: 2 bytes (0xB0 0x00)
 - **Response**: 6 bytes (via notification)
 
-**Request** (write 0xB0 to trigger):
+**Request** (write 0xB0 0x00 to trigger):
 ```
-B0  → Query device info
+B0 00  → Query device info
 ```
 
 **Response** (notification):
@@ -154,7 +154,7 @@ Use JieLi download tool to flash the `.ufw` file.
 **Get Device Info**:
 1. Find characteristic `9A52...`
 2. Enable notifications
-3. Write `B0` to trigger device info
+3. Write `B0 00` to trigger device info
 4. Receive notification with firmware version and battery level
 
 ---

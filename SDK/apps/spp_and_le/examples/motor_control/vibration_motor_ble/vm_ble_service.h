@@ -20,7 +20,7 @@
 
 /* Packet format constants */
 #define VM_MOTOR_PACKET_SIZE    2
-#define VM_DEVICE_INFO_REQUEST_SIZE  1  /* Single byte: 0xB0 */
+#define VM_DEVICE_INFO_REQUEST_SIZE  2  /* Two bytes: 0xB0 0x00 */
 #define VM_DEVICE_INFO_RESPONSE_SIZE 6
 
 /* Device info protocol */
@@ -75,11 +75,11 @@ int vm_ble_handle_motor_write(uint16_t conn_handle, const uint8_t *data, uint16_
 
 /**
  * Handle incoming write request to device info characteristic
- * Sends notification with device information when 0xB0 is written
+ * Sends notification with device information when 0xB0 0x00 is written
  * Note: This is handled directly in vm_att_write_callback, not as separate function
  * @param conn_handle Connection handle
- * @param data Packet data (1 byte: 0xB0 command)
- * @param len Packet length (must be 1)
+ * @param data Packet data (2 bytes: 0xB0 0x00 command)
+ * @param len Packet length (must be 2)
  * @return VM_ERR_OK on success, error code otherwise
  */
 int vm_ble_handle_device_info_write(uint16_t conn_handle, const uint8_t *data, uint16_t len);

@@ -97,11 +97,11 @@ static int vm_att_write_callback(hci_con_handle_t connection_handle, uint16_t at
         }
     }
     
-    /* Handle device info characteristic write - trigger notification on 0xB0 */
+    /* Handle device info characteristic write - trigger notification on 0xB0 0x00 */
     if (att_handle == ATT_CHARACTERISTIC_VM_DEVICE_INFO_VALUE_HANDLE) {
-        /* Check for single byte 0xB0 command */
-        if (buffer_size == 1 && buffer[0] == 0xB0) {
-            log_info("Device info request received (0xB0)\\n");
+        /* Check for 2 bytes: 0xB0 0x00 command */
+        if (buffer_size == 2 && buffer[0] == 0xB0 && buffer[1] == 0x00) {
+            log_info("Device info request received (0xB0 0x00)\\n");
             
             /* Build device info response */
             uint8_t response[VM_DEVICE_INFO_RESPONSE_SIZE];
@@ -124,8 +124,10 @@ static int vm_att_write_callback(hci_con_handle_t connection_handle, uint16_t at
             
             return 0;
         } else {
-            log_info("Invalid device info request: size=%d, data=0x%02x\\n", 
-                     buffer_size, buffer_size > 0 ? buffer[0] : 0);
+            log_info("Invalid device info request: size=%d, data=0x%02x 0x%02x\\n", 
+                     buffer_size, 
+                     buffer_size > 0 ? buffer[0] : 0,
+                     buffer_size > 1 ? buffer[1] : 0);
             return 0x0E;  /* ATT_ERROR_VALUE_NOT_ALLOWED */
         }
     }
