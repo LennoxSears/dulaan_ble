@@ -25,6 +25,11 @@
 #include "vibration_motor_ble/vm_ble_service.h"
 #include "vibration_motor_ble/vm_motor_control.h"
 
+#if RCSP_BTMATE_EN
+#include "rcsp_bluetooth.h"
+#include "JL_rcsp_api.h"
+#endif
+
 /* Connection handle */
 static u16 motor_ble_con_handle = 0;
 
@@ -322,6 +327,11 @@ void bt_ble_init(void)
     
     /* Initialize server (profile + advertising) */
     motor_server_init();
+    
+#if RCSP_BTMATE_EN
+    /* Initialize RCSP for OTA support */
+    rcsp_init();
+#endif
     
     /* Enable BLE module - starts advertising */
     ble_module_enable(1);

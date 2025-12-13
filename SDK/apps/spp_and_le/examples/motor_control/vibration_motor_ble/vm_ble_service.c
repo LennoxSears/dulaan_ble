@@ -110,6 +110,24 @@ static int vm_att_write_callback(hci_con_handle_t connection_handle, uint16_t at
     
     /* Device info is now read-only, no write handler needed */
     
+#if RCSP_BTMATE_EN
+    /* Handle RCSP OTA write */
+    if (att_handle == ATT_CHARACTERISTIC_ae01_02_VALUE_HANDLE) {
+        log_info("RCSP write: %d bytes\n", buffer_size);
+        ble_gatt_server_receive_update_data(NULL, buffer, buffer_size);
+        return 0;
+    }
+    
+    /* Handle RCSP CCC writes */
+    if (att_handle == ATT_CHARACTERISTIC_ae02_02_CLIENT_CONFIGURATION_HANDLE) {
+        log_info("RCSP ae02 CCC write: 0x%02x\n", buffer[0]);
+        ble_op_latency_skip(connection_handle, 0xffff);
+        ble_gatt_server_set_update_send(connection_handle, ATT_CHARACTERISTIC_ae02_02_VALUE_HANDLE, ATT_OP_AUTO_READ_CCC);
+        ble_gatt_server_characteristic_ccc_set(connection_handle, att_handle, buffer[0]);
+        return 0;
+    }
+#endif
+    
     /* Not our characteristic, let other handlers process it */
     return 0;
 }
