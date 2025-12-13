@@ -96,7 +96,7 @@ io_capabilities = IO_CAPABILITY_NO_INPUT_NO_OUTPUT;  // Just-Works
 
 #### Characteristic 2: Device Info (9A52...)
 - **UUID**: `9A521A2D-594F-4E2B-B123-5F739A2D594F`
-- **Property**: Write Without Response + Notify
+- **Property**: Write + Notify
 - **Request**: 1 byte (0xB0)
 - **Response**: 6 bytes (via notification)
 

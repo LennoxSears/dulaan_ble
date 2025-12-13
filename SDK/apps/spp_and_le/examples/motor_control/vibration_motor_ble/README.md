@@ -39,7 +39,7 @@ All security is handled by the BLE stack:
 - **Format**: 2 bytes (duty_cycle: 0-10000, little-endian)
 
 ### Device Info Query (9A521A2D-594F-4E2B-B123-5F739A2D594F)
-- **Property**: Write Without Response + Notify
+- **Property**: Write + Notify
 - **Request**: 1 byte (0xB0 command)
 - **Response**: 6 bytes (header=0xB0, cmd=0x00, motor_count, fw_low, fw_high, battery)
 
