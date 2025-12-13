@@ -30,8 +30,8 @@ Add include directory:
 Edit `vibration_motor_ble/vm_config.h`:
 
 ```c
-/* Set your motor PWM pin - currently configured for PB8 */
-#define VM_MOTOR_PWM_PIN        IO_PORTB_08  /* Change to your pin */
+/* Set your motor PWM pin - currently configured for PB5 */
+#define VM_MOTOR_PWM_PIN        IO_PORTB_05  /* Change to your pin */
 
 /* Set timer for PWM generation - currently using TIMER3 */
 #define VM_MOTOR_TIMER          JL_TIMER3    /* Change if needed */

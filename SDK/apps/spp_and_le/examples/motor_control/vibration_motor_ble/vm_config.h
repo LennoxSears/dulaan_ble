@@ -15,7 +15,7 @@
 
 /* PWM pin for motor control - uses TIMER3 PWM output */
 #ifndef VM_MOTOR_PWM_PIN
-#define VM_MOTOR_PWM_PIN        IO_PORTB_08  /* PB8 - connected to MOS transistor */
+#define VM_MOTOR_PWM_PIN        IO_PORTB_05  /* PB5 - connected to MOS transistor */
 #endif
 
 /* Timer for PWM generation */

@@ -6,7 +6,7 @@ Standard LESC + Just-Works implementation for JieLi AC632N chip.
 V3.0 - Typical BLE security, no application-layer crypto
 
 ## Hardware Configuration
-- **PWM Pin**: IO_PORTB_08 (PB8) - Connected to MOS transistor gate
+- **PWM Pin**: IO_PORTB_05 (PB5) - Connected to MOS transistor gate
 - **Timer**: JL_TIMER3 - Hardware timer for PWM generation
 - **Frequency**: 1kHz - Manufacturer recommended for vibration motors
 - **Duty Cycle**: 0-10000 (0.00%-100.00%)

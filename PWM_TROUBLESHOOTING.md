@@ -4,13 +4,13 @@
 
 ### PWM Settings (from `vm_config.h`):
 ```c
-#define VM_MOTOR_PWM_PIN        IO_PORTB_08  /* PB8 */
+#define VM_MOTOR_PWM_PIN        IO_PORTB_05  /* PB5 */
 #define VM_MOTOR_TIMER          JL_TIMER3
 #define VM_MOTOR_PWM_FREQ_HZ    1000         /* 1kHz */
 ```
 
 ### Pin Information:
-- **Physical Pin**: PB8 (Port B, Pin 8)
+- **Physical Pin**: PB5 (Port B, Pin 5)
 - **Timer**: TIMER3
 - **Function**: FO_TMR3_PWM (Timer 3 PWM output)
 - **Frequency**: 1kHz (1000 Hz)
@@ -22,7 +22,7 @@
 
 ### 1. **Wrong Pin on Your Board**
 
-**Issue**: PB8 might not be the correct pin for your specific AC632N variant.
+**Issue**: PB5 might not be the correct pin for your specific AC632N variant.
 
 **Check**:
 - What AC632N chip variant do you have? (AC6321A, AC6328A, AC6329C, etc.)
@@ -41,16 +41,16 @@
 
 ### 2. **Pin Conflict with Other Functions**
 
-**Issue**: PB8 might be used by another peripheral (UART, SPI, etc.)
+**Issue**: PB5 might be used by another peripheral (UART, SPI, etc.)
 
 **Check Board Config**:
 ```bash
-# Check if PB8 is used elsewhere
-grep -rn "IO_PORTB_08\|PORTB_08" SDK/apps/spp_and_le/board/bd19/board_ac632n_demo_cfg.h
+# Check if PB5 is used elsewhere
+grep -rn "IO_PORTB_05\|PORTB_05" SDK/apps/spp_and_le/board/bd19/board_ac632n_demo_cfg.h
 ```
 
 **Common Conflicts**:
-- UART RX/TX (PB7/PB8 often used for UART)
+- UART RX/TX (PB7/PB8 often used for UART, PB5 usually safe)
 - Debug pins
 - LED pins
 - Key matrix
@@ -164,7 +164,7 @@ gpio_set_fun_output_port(pwm_io, FO_TMR3_PWM, 0, 1);
 ### Step 1: Check Serial Logs
 
 **Enable Debug Output**:
-1. Connect UART to PC (usually PB7=TX, PB8=RX or check your board)
+1. Connect UART to PC (usually PB7=TX, check your board for RX pin)
 2. Baud rate: 1000000 (1Mbps) - check `TCFG_UART0_BAUDRATE`
 3. Open serial terminal
 
@@ -174,7 +174,7 @@ gpio_set_fun_output_port(pwm_io, FO_TMR3_PWM, 0, 1);
 [MOTOR_APP] -------Motor Control BLE Demo---------
 [MOTOR_APP] =======================================
 ...
-[VM_MOTOR] Initializing PWM: Timer=TIMER3, Pin=PB8, Freq=1000Hz
+[VM_MOTOR] Initializing PWM: Timer=TIMER3, Pin=PB5, Freq=1000Hz
 [VM_MOTOR] PWM initialized successfully
 ...
 bt_ble_init
@@ -241,7 +241,7 @@ Note: Multimeter shows average, not PWM
 
 ### Step 4: Test Different Pins
 
-If PB8 doesn't work, try other pins that support TIMER3 PWM:
+If PB5 doesn't work, try other pins that support TIMER3 PWM:
 
 **Check Datasheet**: Look for "Timer3 PWM Output" pins
 
@@ -265,13 +265,13 @@ Edit `vm_config.h`:
 // In app_motor.c
 void test_gpio_toggle(void)
 {
-    gpio_direction_output(IO_PORTB_08, 0);
-    gpio_set_die(IO_PORTB_08, 1);
+    gpio_direction_output(IO_PORTB_05, 0);
+    gpio_set_die(IO_PORTB_05, 1);
     
     while(1) {
-        gpio_set_output_value(IO_PORTB_08, 1);
+        gpio_set_output_value(IO_PORTB_05, 1);
         os_time_dly(50);  // 500ms
-        gpio_set_output_value(IO_PORTB_08, 0);
+        gpio_set_output_value(IO_PORTB_05, 0);
         os_time_dly(50);  // 500ms
     }
 }
@@ -325,8 +325,8 @@ This should give constant 3.3V output (easy to measure with multimeter).
 
 1. **Chip Variant**: What AC632N chip do you have?
 2. **Board Schematic**: Which pin is motor connected to?
-3. **Pin Availability**: Is PB8 available on your chip package?
-4. **Pin Conflicts**: Is PB8 used for UART/debug?
+3. **Pin Availability**: Is PB5 available on your chip package?
+4. **Pin Conflicts**: Is PB5 used for other peripherals?
 5. **External Circuit**: Is there a MOS transistor? What's the circuit?
 6. **Power Supply**: Is motor power separate from chip power?
 7. **Ground**: Are chip GND and motor GND connected?
@@ -362,9 +362,9 @@ To help you further, please provide:
 ## Next Steps
 
 1. **Check Serial Logs**: Verify motor init and write commands
-2. **Verify Pin**: Confirm PB8 is correct for your board
+2. **Verify Pin**: Confirm PB5 is correct for your board
 3. **Test with Scope**: Measure PWM signal directly at chip pin
-4. **Try Different Pin**: If PB8 doesn't work, try alternatives
+4. **Try Different Pin**: If PB5 doesn't work, try alternatives
 5. **Report Back**: Share logs and measurements for further help
 
 ---
@@ -378,7 +378,7 @@ Add these to help diagnose:
 printf("TIMER3 CON: 0x%08X\n", JL_TIMER3->CON);
 printf("TIMER3 PRD: %d\n", JL_TIMER3->PRD);
 printf("TIMER3 PWM: %d\n", JL_TIMER3->PWM);
-printf("GPIO PB8 DIR: %d\n", gpio_read(IO_PORTB_08));
+printf("GPIO PB5 DIR: %d\n", gpio_read(IO_PORTB_05));
 ```
 
 This will show if timer is actually configured.
@@ -388,8 +388,8 @@ This will show if timer is actually configured.
 ## Summary
 
 **Most Likely Issues**:
-1. ❌ Wrong pin (PB8 not available on your chip variant)
-2. ❌ Pin conflict (PB8 used for UART or other function)
+1. ❌ Wrong pin (PB5 not available on your chip variant)
+2. ❌ Pin conflict (PB5 used for other function)
 3. ❌ Not sending motor control commands from app
 4. ❌ Measuring wrong pin or with wrong tool
 
