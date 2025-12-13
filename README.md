@@ -40,6 +40,43 @@ Bluetooth Low Energy (BLE) firmware for vibration motor control on JieLi AC632N 
 
 ---
 
+## BLE Security & Pairing
+
+### Pairing Flow
+
+1. Device advertises as "VibMotor" (LE General Discoverable)
+2. Phone connects to device
+3. BLE stack automatically triggers LESC pairing (`slave_set_wait_security = 1`)
+4. System prompt: "Pair with VibMotor?" (Just-Works, no PIN)
+5. Pairing success → BLE stack stores LTK (Long Term Key)
+6. Subsequent connections: Automatic encryption, no prompts
+
+### Security Features
+
+All security handled by BLE stack (no application-layer security):
+
+- **Link Encryption**: AES-CCM 128-bit (automatic)
+- **Key Exchange**: P-256 ECDH (LESC)
+- **Authentication**: Just-Works (no MITM protection)
+- **Replay Protection**: Link-layer packet counter (automatic)
+- **Data Integrity**: AES-CCM MIC (automatic)
+- **Key Storage**: LTK managed by BLE stack (automatic)
+
+### Security Configuration
+
+```c
+// In SDK configuration
+slave_set_wait_security = 1;  // Force encryption
+authentication_req_flags = SM_AUTHREQ_BONDING | SM_AUTHREQ_SECURE_CONNECTION;
+io_capabilities = IO_CAPABILITY_NO_INPUT_NO_OUTPUT;  // Just-Works
+```
+
+**Production checklist**:
+- Enable chip RDP/APPROTECT
+- App should filter by Service UUID `9A501A2D-594F-4E2B-B123-5F739A2D594F`
+
+---
+
 ## BLE Protocol
 
 ### Service: Motor Control (9A50...)
@@ -417,18 +454,13 @@ SDK/cpu/bd19/tools/download/data_trans/jl_isd.ufw
 
 ---
 
-## Protocol Reference
+## Protocol Design Goals
 
-### Chinese Protocol Document
-
-See `蓝牙震动马达控制协议.md` for detailed protocol specification in Chinese.
-
-### Key Points
-
-1. **Security**: LESC + Just-Works (standard BLE security)
-2. **No Application-Layer Security**: All handled by BLE stack
-3. **Simple Protocol**: 2-byte motor control, 6-byte device info
-4. **OTA Support**: Standard RCSP protocol
+1. **Standard BLE Security**: LESC + Just-Works
+2. **Minimal User Interaction**: First connection = 1 system prompt, subsequent = instant
+3. **Single-Packet Control**: 2-byte duty cycle command
+4. **No Application Security Logic**: Fully rely on BLE stack
+5. **Simple Device Info**: 6-byte read response with firmware version and battery
 
 ---
 
