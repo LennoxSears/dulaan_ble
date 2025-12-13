@@ -68,9 +68,14 @@ static void set_timer_pwm_duty(JL_TIMER_TypeDef *JL_TIMERx, u32 duty)
 int vm_motor_init(void)
 {
     /* Initialize TIMER3 PWM: 1kHz, 0% duty (motor off) */
+    printf("[VM_MOTOR] Initializing PWM: Timer=TIMER3, Pin=PB%d, Freq=%dHz\n", 
+           (VM_MOTOR_PWM_PIN % 16), VM_MOTOR_PWM_FREQ_HZ);
+    
     timer_pwm_init(VM_MOTOR_TIMER, VM_MOTOR_PWM_PIN, VM_MOTOR_PWM_FREQ_HZ, 0);
     
     g_current_duty = 0;
+    
+    printf("[VM_MOTOR] PWM initialized successfully\n");
     
     return 0;
 }
@@ -82,10 +87,15 @@ int vm_motor_set_duty(u16 duty_cycle)
         duty_cycle = VM_MOTOR_DUTY_MAX;
     }
     
+    printf("[VM_MOTOR] Setting duty: %d/10000 (%.2f%%)\n", duty_cycle, duty_cycle / 100.0);
+    
     /* Set PWM duty cycle (0-10000 = 0.00%-100.00%) */
     set_timer_pwm_duty(VM_MOTOR_TIMER, duty_cycle);
     
     g_current_duty = duty_cycle;
+    
+    printf("[VM_MOTOR] PWM duty updated, PRD=%d, PWM=%d\n", 
+           (int)VM_MOTOR_TIMER->PRD, (int)VM_MOTOR_TIMER->PWM);
     
     return 0;
 }

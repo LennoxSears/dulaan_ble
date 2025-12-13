@@ -37,8 +37,11 @@ int vm_ble_handle_motor_write(uint16_t conn_handle, const uint8_t *data, uint16_
     /* Parse duty_cycle (little-endian uint16) */
     duty_cycle = ((uint16_t)data[0]) | ((uint16_t)data[1] << 8);
     
+    log_info("Motor write: duty=%d (0x%02X 0x%02X)\n", duty_cycle, data[0], data[1]);
+    
     /* Validate range */
     if (duty_cycle > 10000) {
+        log_error("Invalid duty cycle: %d > 10000\n", duty_cycle);
         return VM_ERR_INVALID_DUTY;
     }
     
@@ -48,6 +51,8 @@ int vm_ble_handle_motor_write(uint16_t conn_handle, const uint8_t *data, uint16_
         log_error("Motor control failed: %d\n", ret);
         return VM_ERR_INVALID_DUTY;
     }
+    
+    log_info("Motor duty set to %d (%.2f%%)\n", duty_cycle, duty_cycle / 100.0);
     
     return VM_ERR_OK;
 }
