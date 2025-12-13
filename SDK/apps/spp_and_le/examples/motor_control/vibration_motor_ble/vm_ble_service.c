@@ -59,25 +59,13 @@ int vm_ble_handle_motor_write(uint16_t conn_handle, const uint8_t *data, uint16_
 }
 
 /**
- * Get battery level - uses JieLi SDK power management
- * This function uses the SDK's built-in battery monitoring system
- * which is initialized by board_power_init() at startup
+ * Get battery level - returns fake value for testing
+ * TODO: Replace with real battery monitoring when hardware is connected
  */
 uint8_t vm_ble_get_battery_level(void)
 {
-    /* Use SDK's battery percentage function
-     * This reads from ADC channel AD_CH_VBAT and converts to 0-100%
-     * The SDK handles voltage divider compensation and battery curve
-     */
-    extern u8 get_vbat_percent(void);
-    u8 battery_percent = get_vbat_percent();
-    
-    /* Clamp to valid range (0-100) */
-    if (battery_percent > 100) {
-        battery_percent = 100;
-    }
-    
-    return battery_percent;
+    /* Return fake battery level for testing */
+    return 85;  /* 85% */
 }
 
 /* 
