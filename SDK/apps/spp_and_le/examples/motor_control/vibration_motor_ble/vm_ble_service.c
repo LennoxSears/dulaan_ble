@@ -1,3 +1,4 @@
+#include "app_config.h"  /* Must be first for RCSP_BTMATE_EN */
 #include "vm_ble_service.h"
 #include "vm_ble_profile.h"
 #include "vm_motor_control.h"
