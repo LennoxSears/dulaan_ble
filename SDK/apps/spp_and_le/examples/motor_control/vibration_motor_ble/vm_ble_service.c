@@ -117,9 +117,10 @@ static int vm_att_write_callback(hci_con_handle_t connection_handle, uint16_t at
             
             /* Send notification */
             ble_op_latency_skip(connection_handle, 0xffff);
-            ble_gatt_server_send_update_data(NULL, connection_handle, 
-                                            ATT_CHARACTERISTIC_VM_DEVICE_INFO_VALUE_HANDLE,
-                                            response, VM_DEVICE_INFO_RESPONSE_SIZE);
+            ble_comm_att_send_data(connection_handle, 
+                                   ATT_CHARACTERISTIC_VM_DEVICE_INFO_VALUE_HANDLE,
+                                   response, VM_DEVICE_INFO_RESPONSE_SIZE,
+                                   ATT_OP_AUTO_READ_CCC);
             
             return 0;
         } else {
