@@ -109,7 +109,46 @@ static int vm_att_write_callback(hci_con_handle_t connection_handle, uint16_t at
         }
     }
     
-    /* Device info is now read-only, no write handler needed */
+    /* Handle device info characteristic write - trigger notification on 0xB0 */
+    if (att_handle == ATT_CHARACTERISTIC_VM_DEVICE_INFO_VALUE_HANDLE) {
+        /* Check for single byte 0xB0 command */
+        if (buffer_size == 1 && buffer[0] == 0xB0) {
+            log_info("Device info request received (0xB0)\\n");
+            
+            /* Build device info response */
+            uint8_t response[VM_DEVICE_INFO_RESPONSE_SIZE];
+            response[0] = VM_DEVICE_INFO_HEADER;           /* Header: 0xB0 */
+            response[1] = VM_DEVICE_INFO_CMD;              /* CMD: 0x00 */
+            response[2] = 0x01;                            /* Motor count: 1 */
+            response[3] = VM_FIRMWARE_VERSION_LOW;         /* Firmware version low byte */
+            response[4] = VM_FIRMWARE_VERSION_HIGH;        /* Firmware version high byte */
+            response[5] = vm_ble_get_battery_level();      /* Battery level: 0-100% */
+            
+            log_info("Sending device info: FW=%d.%d Battery=%d%%\\n", 
+                     response[4], response[3], response[5]);
+            
+            /* Send notification */
+            ble_op_latency_skip(connection_handle, 0xffff);
+            ble_gatt_server_send_update_data(NULL, connection_handle, 
+                                            ATT_CHARACTERISTIC_VM_DEVICE_INFO_VALUE_HANDLE,
+                                            response, VM_DEVICE_INFO_RESPONSE_SIZE);
+            
+            return 0;
+        } else {
+            log_info("Invalid device info request: size=%d, data=0x%02x\\n", 
+                     buffer_size, buffer_size > 0 ? buffer[0] : 0);
+            return 0x0E;  /* ATT_ERROR_VALUE_NOT_ALLOWED */
+        }
+    }
+    
+    /* Handle device info CCC write */
+    if (att_handle == ATT_CHARACTERISTIC_VM_DEVICE_INFO_CLIENT_CONFIGURATION_HANDLE) {
+        log_info("Device info CCC write: 0x%02x\n", buffer[0]);
+        ble_op_latency_skip(connection_handle, 0xffff);
+        ble_gatt_server_set_update_send(connection_handle, ATT_CHARACTERISTIC_VM_DEVICE_INFO_VALUE_HANDLE, ATT_OP_AUTO_READ_CCC);
+        ble_gatt_server_characteristic_ccc_set(connection_handle, att_handle, buffer[0]);
+        return 0;
+    }
     
 #if RCSP_BTMATE_EN
     /* Handle RCSP OTA write */
@@ -134,40 +173,18 @@ static int vm_att_write_callback(hci_con_handle_t connection_handle, uint16_t at
 }
 
 /*
- * GATT read callback - handles device info reads
+ * GATT read callback - no longer needed (device info is WRITE+NOTIFY now)
  */
 static uint16_t vm_att_read_callback(hci_con_handle_t connection_handle, uint16_t att_handle,
                                       uint16_t offset, uint8_t *buffer, uint16_t buffer_size)
 {
     (void)connection_handle;
+    (void)att_handle;
+    (void)offset;
+    (void)buffer;
+    (void)buffer_size;
     
-    /* Handle device info characteristic read */
-    if (att_handle == ATT_CHARACTERISTIC_VM_DEVICE_INFO_VALUE_HANDLE) {
-        /* Only support reading from offset 0 */
-        if (offset != 0) {
-            return 0;
-        }
-        
-        /* Validate buffer size */
-        if (buffer_size < VM_DEVICE_INFO_RESPONSE_SIZE) {
-            return 0;
-        }
-        
-        /* Build response packet */
-        buffer[0] = VM_DEVICE_INFO_HEADER;           /* Header: 0xB0 */
-        buffer[1] = VM_DEVICE_INFO_CMD;              /* CMD: 0x00 */
-        buffer[2] = 0x01;                            /* Motor count: 1 */
-        buffer[3] = VM_FIRMWARE_VERSION_LOW;         /* Firmware version low byte */
-        buffer[4] = VM_FIRMWARE_VERSION_HIGH;        /* Firmware version high byte */
-        buffer[5] = vm_ble_get_battery_level();      /* Battery level: 0-100% */
-        
-        log_info("Device info read: FW=%d.%d Battery=%d%%\\n", 
-                 buffer[4], buffer[3], buffer[5]);
-        
-        return VM_DEVICE_INFO_RESPONSE_SIZE;
-    }
-    
-    /* Not our characteristic */
+    /* No characteristics to read */
     return 0;
 }
 

@@ -96,10 +96,16 @@ io_capabilities = IO_CAPABILITY_NO_INPUT_NO_OUTPUT;  // Just-Works
 
 #### Characteristic 2: Device Info (9A52...)
 - **UUID**: `9A521A2D-594F-4E2B-B123-5F739A2D594F`
-- **Property**: Read
-- **Format**: 6 bytes
+- **Property**: Write Without Response + Notify
+- **Request**: 1 byte (0xB0)
+- **Response**: 6 bytes (via notification)
 
-**Response**:
+**Request** (write 0xB0 to trigger):
+```
+B0  → Query device info
+```
+
+**Response** (notification):
 ```
 B0 00 01 00 01 55
 │  │  │  │  │  └─ Battery: 85% (0x55)
@@ -145,10 +151,11 @@ Use JieLi download tool to flash the `.ufw` file.
 4. Write to `9A51...`: `88 13` (50% duty)
 5. Motor should vibrate at 50% power
 
-**Read Device Info**:
+**Get Device Info**:
 1. Find characteristic `9A52...`
-2. Tap "Read"
-3. See firmware version and battery level
+2. Enable notifications
+3. Write `B0` to trigger device info
+4. Receive notification with firmware version and battery level
 
 ---
 
