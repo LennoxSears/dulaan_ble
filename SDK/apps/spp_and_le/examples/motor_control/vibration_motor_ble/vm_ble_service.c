@@ -22,39 +22,39 @@ int vm_ble_handle_motor_write(uint16_t conn_handle, const uint8_t *data, uint16_
 {
     uint16_t duty_cycle;
     int ret;
-    
+
     (void)conn_handle;
-    
+
     /* Validate data pointer */
     if (!data) {
         return VM_ERR_INVALID_LENGTH;
     }
-    
+
     /* Validate packet length */
     if (len != VM_MOTOR_PACKET_SIZE) {
         return VM_ERR_INVALID_LENGTH;
     }
-    
+
     /* Parse duty_cycle (little-endian uint16) */
     duty_cycle = ((uint16_t)data[0]) | ((uint16_t)data[1] << 8);
-    
+
     log_info("Motor write: duty=%d (0x%02X 0x%02X)\n", duty_cycle, data[0], data[1]);
-    
+
     /* Validate range */
     if (duty_cycle > 10000) {
         log_error("Invalid duty cycle: %d > 10000\n", duty_cycle);
         return VM_ERR_INVALID_DUTY;
     }
-    
+
     /* Set motor duty cycle */
     ret = vm_motor_set_duty(duty_cycle);
     if (ret != 0) {
         log_error("Motor control failed: %d\n", ret);
         return VM_ERR_INVALID_DUTY;
     }
-    
+
     log_info("Motor duty set to %d (%.2f%%)\n", duty_cycle, duty_cycle / 100.0);
-    
+
     return VM_ERR_OK;
 }
 
@@ -68,7 +68,7 @@ uint8_t vm_ble_get_battery_level(void)
     return 85;  /* 85% */
 }
 
-/* 
+/*
  * GATT write callback - called by BLE stack when characteristic is written
  */
 static int vm_att_write_callback(hci_con_handle_t connection_handle, uint16_t att_handle,
@@ -76,14 +76,14 @@ static int vm_att_write_callback(hci_con_handle_t connection_handle, uint16_t at
                                   uint8_t *buffer, uint16_t buffer_size)
 {
     int ret;
-    
+
     (void)transaction_mode;
     (void)offset;
-    
+
     /* Handle motor control characteristic */
     if (att_handle == ATT_CHARACTERISTIC_VM_MOTOR_CONTROL_VALUE_HANDLE) {
         ret = vm_ble_handle_motor_write(connection_handle, buffer, buffer_size);
-        
+
         /* Map error codes to ATT error codes */
         switch (ret) {
             case VM_ERR_OK:
@@ -96,13 +96,13 @@ static int vm_att_write_callback(hci_con_handle_t connection_handle, uint16_t at
                 return 0x0E;
         }
     }
-    
+
     /* Handle device info characteristic write - trigger notification on 0xB0 0x00 */
     if (att_handle == ATT_CHARACTERISTIC_VM_DEVICE_INFO_VALUE_HANDLE) {
         /* Check for 2 bytes: 0xB0 0x00 command */
         if (buffer_size == 2 && buffer[0] == 0xB0 && buffer[1] == 0x00) {
             log_info("Device info request received (0xB0 0x00)\\n");
-            
+
             /* Build device info response */
             uint8_t response[VM_DEVICE_INFO_RESPONSE_SIZE];
             response[0] = VM_DEVICE_INFO_HEADER;           /* Header: 0xB0 */
@@ -111,27 +111,27 @@ static int vm_att_write_callback(hci_con_handle_t connection_handle, uint16_t at
             response[3] = VM_FIRMWARE_VERSION_LOW;         /* Firmware version low byte */
             response[4] = VM_FIRMWARE_VERSION_HIGH;        /* Firmware version high byte */
             response[5] = vm_ble_get_battery_level();      /* Battery level: 0-100% */
-            
-            log_info("Sending device info: FW=%d.%d Battery=%d%%\\n", 
+
+            log_info("Sending device info: FW=%d.%d Battery=%d%%\\n",
                      response[4], response[3], response[5]);
-            
+
             /* Send notification */
-            ble_op_latency_skip(connection_handle, 0xffff);
-            ble_comm_att_send_data(connection_handle, 
+            ble_op_latency_s kip(connection_handle, 0xffff);
+            ble_comm_att_send_data(connection_handle,
                                    ATT_CHARACTERISTIC_VM_DEVICE_INFO_VALUE_HANDLE,
                                    response, VM_DEVICE_INFO_RESPONSE_SIZE,
                                    ATT_OP_AUTO_READ_CCC);
-            
+
             return 0;
         } else {
-            log_info("Invalid device info request: size=%d, data=0x%02x 0x%02x\\n", 
-                     buffer_size, 
+            log_info("Invalid device info request: size=%d, data=0x%02x 0x%02x\\n",
+                     buffer_size,
                      buffer_size > 0 ? buffer[0] : 0,
                      buffer_size > 1 ? buffer[1] : 0);
             return 0x0E;  /* ATT_ERROR_VALUE_NOT_ALLOWED */
         }
     }
-    
+
     /* Handle device info CCC write */
     if (att_handle == ATT_CHARACTERISTIC_VM_DEVICE_INFO_CLIENT_CONFIGURATION_HANDLE) {
         log_info("Device info CCC write: 0x%02x\n", buffer[0]);
@@ -140,7 +140,7 @@ static int vm_att_write_callback(hci_con_handle_t connection_handle, uint16_t at
         ble_gatt_server_characteristic_ccc_set(connection_handle, att_handle, buffer[0]);
         return 0;
     }
-    
+
 #if RCSP_BTMATE_EN
     /* Handle RCSP OTA write */
     if (att_handle == ATT_CHARACTERISTIC_ae01_02_VALUE_HANDLE) {
@@ -148,7 +148,7 @@ static int vm_att_write_callback(hci_con_handle_t connection_handle, uint16_t at
         ble_gatt_server_receive_update_data(NULL, buffer, buffer_size);
         return 0;
     }
-    
+
     /* Handle RCSP CCC writes */
     if (att_handle == ATT_CHARACTERISTIC_ae02_02_CLIENT_CONFIGURATION_HANDLE) {
         log_info("RCSP ae02 CCC write: 0x%02x\n", buffer[0]);
@@ -158,7 +158,7 @@ static int vm_att_write_callback(hci_con_handle_t connection_handle, uint16_t at
         return 0;
     }
 #endif
-    
+
     /* Not our characteristic, let other handlers process it */
     return 0;
 }
@@ -174,7 +174,7 @@ static uint16_t vm_att_read_callback(hci_con_handle_t connection_handle, uint16_
     (void)offset;
     (void)buffer;
     (void)buffer_size;
-    
+
     /* No characteristics to read */
     return 0;
 }
@@ -186,30 +186,30 @@ static int vm_event_packet_handler(int event, u8 *packet, u16 size, u8 *ext_para
 {
     (void)size;
     (void)ext_param;
-    
+
     if (!packet) {
         return 0;
     }
-    
+
     switch (event) {
         case GATT_COMM_EVENT_CONNECTION_COMPLETE:
             vm_connection_handle = little_endian_read_16(packet, 0);
             log_info("Connected: handle=%04x\n", vm_connection_handle);
             break;
-            
+
         case GATT_COMM_EVENT_DISCONNECT_COMPLETE:
             log_info("Disconnected: handle=%04x\n", little_endian_read_16(packet, 0));
             vm_connection_handle = 0;
             break;
-            
+
         case GATT_COMM_EVENT_ENCRYPTION_CHANGE:
             log_info("Encryption enabled: handle=%04x\n", little_endian_read_16(packet, 0));
             break;
-            
+
         default:
             break;
     }
-    
+
     return 0;
 }
 
@@ -234,24 +234,24 @@ static const gatt_server_cfg_t vm_server_cfg = {
 int vm_ble_service_init(void)
 {
     int ret;
-    
+
     /* Initialize motor control */
     ret = vm_motor_init();
     if (ret != 0) {
         return ret;
     }
-    
+
     /* Register GATT profile with BLE stack */
     ble_gatt_server_set_profile(vm_motor_profile_data, sizeof(vm_motor_profile_data));
-    
+
     log_info("VM BLE service initialized - LESC + Just-Works\n");
-    
+
     /* Note: The server configuration (vm_server_cfg) needs to be registered
      * with the BLE stack during application initialization. This is typically
      * done in the main application's GATT control block setup.
-     * 
+     *
      * Example integration:
-     * 
+     *
      * static gatt_ctrl_t vm_gatt_control_block = {
      *     .mtu_size = 23,
      *     .cbuffer_size = 512,
@@ -259,10 +259,10 @@ int vm_ble_service_init(void)
      *     .server_config = vm_ble_get_server_config(),
      *     .sm_config = vm_ble_get_sm_config(),
      * };
-     * 
+     *
      * Then call: ble_comm_init(&vm_gatt_control_block);
      */
-    
+
     return 0;
 }
 
@@ -283,7 +283,7 @@ void vm_ble_service_deinit(void)
 {
     /* Deinitialize motor control */
     vm_motor_deinit();
-    
+
     /* Note: BLE stack cleanup (ble_comm_exit) should be called
      * by the main application during shutdown, not by individual services.
      */
