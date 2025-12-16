@@ -3226,7 +3226,6 @@ obj/Release/apps/spp_and_le/examples/motor_control/vibration_motor_ble/vm_ble_se
 -r=obj/Release/apps/spp_and_le/examples/motor_control/vibration_motor_ble/vm_ble_service.o,vm_ble_get_sm_config,pl
 -r=obj/Release/apps/spp_and_le/examples/motor_control/vibration_motor_ble/vm_ble_service.o,vm_ble_service_deinit,pl
 -r=obj/Release/apps/spp_and_le/examples/motor_control/vibration_motor_ble/vm_ble_service.o,vm_motor_deinit,l
--r=obj/Release/apps/spp_and_le/examples/motor_control/vibration_motor_ble/vm_ble_service.o,ble_user_cmd_prepare,l
 -r=obj/Release/apps/spp_and_le/examples/motor_control/vibration_motor_ble/vm_ble_service.o,ble_comm_att_send_data,l
 -r=obj/Release/apps/spp_and_le/examples/motor_control/vibration_motor_ble/vm_ble_service.o,ble_gatt_server_set_update_send,l
 -r=obj/Release/apps/spp_and_le/examples/motor_control/vibration_motor_ble/vm_ble_service.o,ble_gatt_server_characteristic_ccc_set,l
