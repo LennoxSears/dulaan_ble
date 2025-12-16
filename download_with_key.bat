@@ -1,7 +1,8 @@
 @echo off
 @rem ========================================
 @rem Flash firmware with KEY
-@rem Use this AFTER writing key to chip
+@rem Use this with board that has key pre-written
+@rem (Get pre-keyed board from manufacturer)
 @rem ========================================
 
 cd %~dp0
