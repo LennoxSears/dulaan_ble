@@ -2,6 +2,10 @@
 @rem ========================================
 @rem Step 1: Write KEY to virgin chip
 @rem This must be done ONCE on a new chip
+@rem 
+@rem NOTE: This requires special equipment
+@rem Cannot write key via USB programmer
+@rem Get pre-keyed board from manufacturer
 @rem ========================================
 
 cd %~dp0

@@ -289,23 +289,31 @@ ADC reads divided voltage → multiply by 2.5 → actual battery voltage
 
 ### OTA Security Key
 
-**Important**: OTA requires encryption key to be written to chip first.
+**Important**: OTA requires encryption key in chip for secure firmware updates.
 
 **Key file**: `AC690X-A2E8.key` (40-character hex encryption key)
 
-**First-time setup** (write key to virgin chip):
-1. Copy `download_write_key.bat` and `AC690X-A2E8.key` to `SDK/cpu/bd19/tools/download/data_trans/`
-2. Connect board via USB
-3. Run `download_write_key.bat`
-4. Wait for "KEY written successfully!"
+#### Option 1: Board with Pre-written Key (Recommended)
 
-**Subsequent flashing** (with key validation):
+Get board from manufacturer with key already written. This is the standard approach.
+
+**Flashing firmware**:
 1. Copy `download_with_key.bat` and `AC690X-A2E8.key` to `SDK/cpu/bd19/tools/download/data_trans/`
 2. Build firmware: `make ac632n_spp_and_le`
 3. Run `download_with_key.bat`
-4. Generates encrypted `.ufw` file
+4. Generates encrypted `.ufw` file for OTA
 
-⚠️ **Note**: Key is permanent once written. Keep `AC690X-A2E8.key` file secure.
+#### Option 2: Development without Key
+
+For development/testing without encryption:
+1. Use SDK's original `download.bat` (no `-key` parameter)
+2. Flash firmware normally
+3. OTA works but firmware is **not encrypted**
+
+⚠️ **Note**: 
+- Writing key to chip requires special equipment (not possible via USB)
+- Production boards should have key pre-written by manufacturer
+- Keep `AC690X-A2E8.key` file secure
 
 ### How It Works
 
@@ -380,17 +388,16 @@ gpio_set_output_value(IO_PORTB_04, 0);
 2. VM size: 80KB in `isd_config.ini`
 3. RCSP service present in GATT profile
 4. Using correct OTA file (`.ufw`)
-5. **Key written to chip**: Run `download_write_key.bat` first
-6. **Key matches**: Use same key for flashing and OTA file
+5. **Key matches**: If using encrypted OTA, board must have matching key
 
 **Verify RCSP service**:
 - Connect with nRF Connect
 - Look for service `ae30`
 - Should see characteristics `ae01`, `ae02`, `ae05`
 
-**Key errors**:
-- "KEY不匹配" (Key mismatch): Chip has different key
-- "芯片没有被烧写过KEY" (No key): Run `download_write_key.bat`
+**Key errors during flashing**:
+- "KEY不匹配" (Key mismatch): Board has different key than `AC690X-A2E8.key`
+- "芯片没有被烧写过KEY" (No key): Board is blank, use development mode (no key) or get pre-keyed board from manufacturer
 
 ### Battery Always Shows 85%
 
