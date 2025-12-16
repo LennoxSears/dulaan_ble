@@ -287,6 +287,26 @@ ADC reads divided voltage → multiply by 2.5 → actual battery voltage
 
 ## OTA Updates
 
+### OTA Security Key
+
+**Important**: OTA requires encryption key to be written to chip first.
+
+**Key file**: `AC690X-A2E8.key` (40-character hex encryption key)
+
+**First-time setup** (write key to virgin chip):
+1. Copy `download_write_key.bat` and `AC690X-A2E8.key` to `SDK/cpu/bd19/tools/download/data_trans/`
+2. Connect board via USB
+3. Run `download_write_key.bat`
+4. Wait for "KEY written successfully!"
+
+**Subsequent flashing** (with key validation):
+1. Copy `download_with_key.bat` and `AC690X-A2E8.key` to `SDK/cpu/bd19/tools/download/data_trans/`
+2. Build firmware: `make ac632n_spp_and_le`
+3. Run `download_with_key.bat`
+4. Generates encrypted `.ufw` file
+
+⚠️ **Note**: Key is permanent once written. Keep `AC690X-A2E8.key` file secure.
+
 ### How It Works
 
 1. JL OTA app connects to device
@@ -298,12 +318,22 @@ ADC reads divided voltage → multiply by 2.5 → actual battery voltage
 
 ### OTA File
 
-After building, OTA file is at:
+After building with `download_with_key.bat`, OTA file is at:
 ```
-SDK/cpu/bd19/tools/download/data_trans/jl_isd.ufw
+SDK/cpu/bd19/tools/download/data_trans/update.ufw
 ```
 
-Use this file with JL OTA app for wireless updates.
+Use this encrypted file with JL OTA app for wireless updates.
+
+### JL OTA Android App
+
+Test app provided in `Android-JL_OTA/apk/JLOTA_V1.8.1_10807-debug.apk`
+
+**Usage**:
+1. Install APK on Android phone
+2. Copy `.ufw` file to: `/Android/data/com.jieli.otasdk/files/upgrade/`
+3. Open app, connect to device
+4. Select `.ufw` file and start OTA
 
 ---
 
@@ -350,11 +380,17 @@ gpio_set_output_value(IO_PORTB_04, 0);
 2. VM size: 80KB in `isd_config.ini`
 3. RCSP service present in GATT profile
 4. Using correct OTA file (`.ufw`)
+5. **Key written to chip**: Run `download_write_key.bat` first
+6. **Key matches**: Use same key for flashing and OTA file
 
 **Verify RCSP service**:
 - Connect with nRF Connect
 - Look for service `ae30`
 - Should see characteristics `ae01`, `ae02`, `ae05`
+
+**Key errors**:
+- "KEY不匹配" (Key mismatch): Chip has different key
+- "芯片没有被烧写过KEY" (No key): Run `download_write_key.bat`
 
 ### Battery Always Shows 85%
 
