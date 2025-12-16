@@ -116,8 +116,7 @@ static int vm_att_write_callback(hci_con_handle_t connection_handle, uint16_t at
                      response[4], response[3], response[5]);
 
             /* Send notification */
-            ble_op_latency_s kip(connection_handle, 0xffff);
-            ble_comm_att_send_data(connection_handle,
+            ble_comm_att_send_data(connection_handle, 
                                    ATT_CHARACTERISTIC_VM_DEVICE_INFO_VALUE_HANDLE,
                                    response, VM_DEVICE_INFO_RESPONSE_SIZE,
                                    ATT_OP_AUTO_READ_CCC);
@@ -135,7 +134,6 @@ static int vm_att_write_callback(hci_con_handle_t connection_handle, uint16_t at
     /* Handle device info CCC write */
     if (att_handle == ATT_CHARACTERISTIC_VM_DEVICE_INFO_CLIENT_CONFIGURATION_HANDLE) {
         log_info("Device info CCC write: 0x%02x\n", buffer[0]);
-        ble_op_latency_skip(connection_handle, 0xffff);
         ble_gatt_server_set_update_send(connection_handle, ATT_CHARACTERISTIC_VM_DEVICE_INFO_VALUE_HANDLE, ATT_OP_AUTO_READ_CCC);
         ble_gatt_server_characteristic_ccc_set(connection_handle, att_handle, buffer[0]);
         return 0;
@@ -152,7 +150,6 @@ static int vm_att_write_callback(hci_con_handle_t connection_handle, uint16_t at
     /* Handle RCSP CCC writes */
     if (att_handle == ATT_CHARACTERISTIC_ae02_02_CLIENT_CONFIGURATION_HANDLE) {
         log_info("RCSP ae02 CCC write: 0x%02x\n", buffer[0]);
-        ble_op_latency_skip(connection_handle, 0xffff);
         ble_gatt_server_set_update_send(connection_handle, ATT_CHARACTERISTIC_ae02_02_VALUE_HANDLE, ATT_OP_AUTO_READ_CCC);
         ble_gatt_server_characteristic_ccc_set(connection_handle, att_handle, buffer[0]);
         return 0;
