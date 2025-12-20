@@ -28,10 +28,11 @@ Bluetooth Low Energy (BLE) firmware for vibration motor control on JieLi AC632N 
 - **Response Time**: < 1ms from command to PWM update
 
 ### OTA Support
-- **Protocol**: RCSP (JieLi OTA)
-- **Service UUID**: `ae30`
+- **Protocol**: Custom BLE OTA (simple 3-command protocol)
+- **Characteristic UUID**: `9A531A2D-594F-4E2B-B123-5F739A2D594F`
 - **VM Storage**: 80KB flash
-- **Compatible**: JL OTA app
+- **Compatible**: Any BLE app (nRF Connect, custom app)
+- **Features**: Progress notifications, CRC32 verification, auto-reboot
 
 ### Battery Monitoring
 - **Source**: SDK power management (ADC-based)
@@ -116,12 +117,25 @@ B0 00 01 00 01 55
 └──────────────── Header: 0xB0
 ```
 
-### Service: RCSP OTA (ae30)
+#### Characteristic 3: OTA Update (9A53...)
+- **UUID**: `9A531A2D-594F-4E2B-B123-5F739A2D594F`
+- **Property**: Write + Notify
+- **Purpose**: Custom OTA firmware updates
 
-Used by JL OTA app for firmware updates. Includes characteristics:
-- `ae01` - RCSP commands (Write)
-- `ae02` - RCSP responses (Notify)
-- `ae05` - OTA data transfer (Indicate)
+**Commands**:
+```
+Start:  01 [size_low] [size_high] [size_mid] [size_top]
+Data:   02 [seq_low] [seq_high] [data...]
+Finish: 03 [crc_low] [crc_high] [crc_mid] [crc_top]
+```
+
+**Notifications**:
+```
+Ready:    01 00
+Progress: 02 [percent]
+Success:  03 00
+Error:    FF [error_code]
+```
 
 ---
 
@@ -135,11 +149,13 @@ make clean_ac632n_spp_and_le
 make ac632n_spp_and_le
 ```
 
-**Output**: `SDK/cpu/bd19/tools/download/data_trans/jl_isd.ufw`
+**Output**: 
+- Firmware: `SDK/cpu/bd19/tools/app.bin` (for OTA)
+- Flash file: `SDK/cpu/bd19/tools/download/data_trans/jl_isd.ufw` (for initial programming)
 
 ### 2. Flash to Device
 
-Use JieLi download tool to flash the `.ufw` file.
+Use JieLi download tool to flash the firmware via USB.
 
 ### 3. Test with Phone App
 
@@ -287,61 +303,87 @@ ADC reads divided voltage → multiply by 2.5 → actual battery voltage
 
 ## OTA Updates
 
-### OTA Security Key
+### Custom OTA Protocol
 
-**Important**: OTA requires encryption key in chip for secure firmware updates.
+Simple BLE-based OTA without proprietary protocols or encryption keys.
 
-**Key file**: `AC690X-A2E8.key` (40-character hex encryption key)
-
-#### Option 1: Board with Pre-written Key (Recommended)
-
-Get board from manufacturer with key already written. This is the standard approach.
-
-**Flashing firmware**:
-1. Copy `download_with_key.bat` and `AC690X-A2E8.key` to `SDK/cpu/bd19/tools/download/data_trans/`
-2. Build firmware: `make ac632n_spp_and_le`
-3. Run `download_with_key.bat`
-4. Generates encrypted `.ufw` file for OTA
-
-#### Option 2: Development without Key
-
-For development/testing without encryption:
-1. Use SDK's original `download.bat` (no `-key` parameter)
-2. Flash firmware normally
-3. OTA works but firmware is **not encrypted**
-
-⚠️ **Note**: 
-- Writing key to chip requires special equipment (not possible via USB)
-- Production boards should have key pre-written by manufacturer
-- Keep `AC690X-A2E8.key` file secure
+**Features**:
+- ✅ No JieLi RCSP dependency
+- ✅ No encryption key required
+- ✅ Works with any BLE app (nRF Connect, LightBlue, custom app)
+- ✅ Simple 3-command protocol
+- ✅ Progress notifications
+- ✅ CRC32 verification
 
 ### How It Works
 
-1. JL OTA app connects to device
-2. App discovers RCSP service (ae30)
-3. App sends OTA start command
-4. Firmware data transferred via ae05 characteristic
-5. Data written to 80KB VM flash area
-6. Device reboots and applies update
+1. App connects to device via BLE
+2. Enable notifications on OTA characteristic (`9A53...`)
+3. Send START command with firmware size
+4. Device erases flash and sends READY notification
+5. App sends firmware in chunks (240 bytes each)
+6. Device sends progress notifications (every 10%)
+7. App sends FINISH command with CRC32
+8. Device verifies CRC and reboots
 
-### OTA File
+### Protocol Commands
 
-After building with `download_with_key.bat`, OTA file is at:
+**Start OTA**:
 ```
-SDK/cpu/bd19/tools/download/data_trans/update.ufw
+Write: 01 [size_low] [size_high] [size_mid] [size_top]
+Response: 01 00 (Ready)
 ```
 
-Use this encrypted file with JL OTA app for wireless updates.
+**Send Data**:
+```
+Write: 02 [seq_low] [seq_high] [data...] (up to 240 bytes data)
+Response: 02 [progress%] (every 10%)
+```
 
-### JL OTA Android App
+**Finish OTA**:
+```
+Write: 03 [crc_low] [crc_high] [crc_mid] [crc_top]
+Response: 03 00 (Success) or FF [error_code] (Error)
+```
 
-Test app provided in `Android-JL_OTA/apk/JLOTA_V1.8.1_10807-debug.apk`
+### Firmware File
 
-**Usage**:
-1. Install APK on Android phone
-2. Copy `.ufw` file to: `/Android/data/com.jieli.otasdk/files/upgrade/`
-3. Open app, connect to device
-4. Select `.ufw` file and start OTA
+After building, use the raw binary:
+```
+SDK/cpu/bd19/tools/app.bin
+```
+
+**No encryption, no special format** - just the raw firmware binary.
+
+### Testing with nRF Connect
+
+1. Connect to "VibMotor"
+2. Find OTA characteristic `9A53...`
+3. Enable notifications
+4. Write START command (manually or via script)
+5. Write DATA chunks
+6. Write FINISH command
+7. Device reboots with new firmware
+
+### Custom Android App
+
+See protocol documentation for implementation details. Basic flow:
+
+```kotlin
+// 1. Read firmware file
+val firmware = File("app.bin").readBytes()
+
+// 2. Send START
+writeOta(byteArrayOf(0x01, size_bytes...))
+
+// 3. Send DATA chunks
+for (chunk in firmware.chunked(240)) {
+    writeOta(byteArrayOf(0x02, seq_bytes...) + chunk)
+}
+
+// 4. Send FINISH
+writeOta(byteArrayOf(0x03, crc_bytes...))
+```
 
 ---
 
@@ -384,20 +426,24 @@ gpio_set_output_value(IO_PORTB_04, 0);
 ### OTA Fails
 
 **Check**:
-1. OTA enabled: `CONFIG_APP_OTA_ENABLE = 1`
-2. VM size: 80KB in `isd_config.ini`
-3. RCSP service present in GATT profile
-4. Using correct OTA file (`.ufw`)
-5. **Key matches**: If using encrypted OTA, board must have matching key
+1. VM size: 80KB in `isd_config.ini`
+2. OTA characteristic present: `9A53...`
+3. Notifications enabled on OTA characteristic
+4. Using correct file: `app.bin` (raw binary)
+5. Firmware size < 80KB
+6. CRC32 calculated correctly
 
-**Verify RCSP service**:
+**Verify OTA characteristic**:
 - Connect with nRF Connect
-- Look for service `ae30`
-- Should see characteristics `ae01`, `ae02`, `ae05`
+- Look for service `9A50...`
+- Should see OTA characteristic `9A53...`
+- Enable notifications before sending commands
 
-**Key errors during flashing**:
-- "KEY不匹配" (Key mismatch): Board has different key than `AC690X-A2E8.key`
-- "芯片没有被烧写过KEY" (No key): Board is blank, use development mode (no key) or get pre-keyed board from manufacturer
+**Common errors**:
+- Error 0x02: Firmware size too large (> 80KB)
+- Error 0x05: Flash write failed (check VM area)
+- Error 0x09: CRC mismatch (recalculate CRC32)
+- No response: Notifications not enabled
 
 ### Battery Always Shows 85%
 
@@ -484,8 +530,9 @@ make clean_ac632n_spp_and_le
 # Build firmware
 make ac632n_spp_and_le
 
-# Output location
-SDK/cpu/bd19/tools/download/data_trans/jl_isd.ufw
+# Output files
+SDK/cpu/bd19/tools/app.bin                          # For OTA updates
+SDK/cpu/bd19/tools/download/data_trans/jl_isd.ufw  # For USB flashing
 ```
 
 ### Modifying Code
@@ -557,9 +604,10 @@ For issues or questions:
 This firmware provides:
 - ✅ BLE motor control with 0.01% resolution
 - ✅ LESC + Just-Works security
-- ✅ OTA update support (RCSP)
+- ✅ Custom OTA update (simple 3-command protocol)
 - ✅ Real-time battery monitoring
 - ✅ < 1ms command latency
 - ✅ Standard BLE GATT protocol
+- ✅ No proprietary dependencies
 
 **Ready to use with any BLE app that supports custom GATT services.**
