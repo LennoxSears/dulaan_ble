@@ -157,7 +157,13 @@ make ac632n_spp_and_le
 
 Use JieLi download tool to flash the firmware via USB.
 
-### 3. Test with Phone App
+### 3. Test OTA Update
+
+**Using Web Tool** (easiest):
+1. Open `extras/ota-web-tool.html` in Chrome/Edge
+2. Click "Connect" → select "VibMotor"
+3. Select `app.bin` → click "Start Update"
+4. Wait for completion (~10-15 seconds)
 
 **Using nRF Connect or LightBlue**:
 
@@ -239,6 +245,38 @@ MOS Transistor → Motor
 ```
 
 **Latency**: < 1ms from BLE command to PWM update
+
+### OTA Update Flow
+
+```
+App sends START command
+    ↓
+vm_att_write_callback()
+    ↓
+vm_ble_handle_ota_write()
+    ↓ (validates size < 80KB)
+vm_ota_start()
+    ↓ (erases VM flash area)
+Sends notification: 01 00 (Ready)
+    ↓
+App sends DATA packets (20 bytes each)
+    ↓
+vm_ota_write_data()
+    ↓ (writes to flash, tracks progress)
+Sends notifications: 02 [percent]
+    ↓
+App sends FINISH command with CRC32
+    ↓
+vm_ota_finish()
+    ↓ (verifies CRC32)
+Sends notification: 03 00 (Success)
+    ↓
+cpu_reset() after 500ms
+    ↓
+Bootloader loads new firmware from VM
+```
+
+**Update time**: ~10-15 seconds for 60KB firmware
 
 ---
 
@@ -355,17 +393,51 @@ SDK/cpu/bd19/tools/app.bin
 
 **No encryption, no special format** - just the raw firmware binary.
 
-### Testing with nRF Connect
+### Web-Based OTA Tool (Recommended)
+
+**Location**: `extras/ota-web-tool.html`
+
+**Simple 3-step process**:
+1. Open `ota-web-tool.html` in Chrome/Edge (Android or Desktop)
+2. Click "Connect" → select "VibMotor"
+3. Select `app.bin` file → click "Start Update"
+
+**Features**:
+- ✅ No installation required
+- ✅ Works on Android Chrome
+- ✅ Automatic CRC32 calculation
+- ✅ Progress bar with percentage
+- ✅ Error handling with clear messages
+- ✅ Complete logging
+
+**Requirements**:
+- Chrome/Edge browser (Android 6.0+ or Desktop)
+- HTTPS connection (or open as `file://` for local testing)
+- Firmware file < 80KB
+
+**Usage**:
+```bash
+# Option 1: Open directly (file://)
+# Just double-click ota-web-tool.html
+
+# Option 2: Serve via HTTPS (for remote access)
+python3 -m http.server 8000
+# Then open: http://localhost:8000/extras/ota-web-tool.html
+```
+
+### Manual Testing with nRF Connect
+
+For advanced users or debugging:
 
 1. Connect to "VibMotor"
 2. Find OTA characteristic `9A53...`
 3. Enable notifications
-4. Write START command (manually or via script)
-5. Write DATA chunks
-6. Write FINISH command
-7. Device reboots with new firmware
+4. Manually send START/DATA/FINISH commands
+5. Device reboots with new firmware
 
-### Custom Android App
+See protocol commands above for byte format.
+
+### Custom App Integration
 
 See protocol documentation for implementation details. Basic flow:
 
@@ -473,7 +545,6 @@ gpio_set_output_value(IO_PORTB_04, 0);
 [BLE_MOTOR] bt_ble_init
 [BLE_MOTOR] motor_server_init
 [VM_BLE] VM BLE service initialized - LESC + Just-Works
-[RCSP] rcsp_init
 ```
 
 **Motor Control**:
