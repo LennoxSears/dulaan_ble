@@ -30,7 +30,7 @@ Bluetooth Low Energy (BLE) firmware for vibration motor control on JieLi AC632N 
 ### OTA Support
 - **Protocol**: Custom BLE OTA (simple 3-command protocol)
 - **Characteristic UUID**: `9A531A2D-594F-4E2B-B123-5F739A2D594F`
-- **VM Storage**: 80KB flash
+- **VM Storage**: 240KB flash
 - **Compatible**: Any BLE app (nRF Connect, custom app)
 - **Features**: Progress notifications, CRC32 verification, auto-reboot
 
@@ -254,7 +254,7 @@ App sends START command
 vm_att_write_callback()
     ↓
 vm_ble_handle_ota_write()
-    ↓ (validates size < 80KB)
+    ↓ (validates size < 240KB)
 vm_ota_start()
     ↓ (erases VM flash area)
 Sends notification: 01 00 (Ready)
@@ -412,15 +412,25 @@ SDK/cpu/bd19/tools/app.bin
 
 **Requirements**:
 - Chrome/Edge browser (Android 6.0+ or Desktop)
-- HTTPS connection (or open as `file://` for local testing)
-- Firmware file < 80KB
+- **Must use HTTP server** (Web Bluetooth doesn't work with `file://` on Android)
+- Firmware file < 240KB
 
-**Usage**:
+**Usage on Android**:
 ```bash
-# Option 1: Open directly (file://)
-# Just double-click ota-web-tool.html
+# Method 1: Install "Simple HTTP Server" app from Play Store
+# - Point to folder containing ota-web-tool.html
+# - Open http://localhost:8080/ota-web-tool.html in Chrome
 
-# Option 2: Serve via HTTPS (for remote access)
+# Method 2: Use Termux
+pkg install python
+cd /path/to/dulaan_ble/extras
+python -m http.server 8000
+# Then open: http://localhost:8000/ota-web-tool.html
+```
+
+**Usage on Desktop**:
+```bash
+# Serve via HTTP
 python3 -m http.server 8000
 # Then open: http://localhost:8000/extras/ota-web-tool.html
 ```
@@ -498,11 +508,11 @@ gpio_set_output_value(IO_PORTB_04, 0);
 ### OTA Fails
 
 **Check**:
-1. VM size: 80KB in `isd_config.ini`
+1. VM size: 240KB in `isd_config.ini`
 2. OTA characteristic present: `9A53...`
 3. Notifications enabled on OTA characteristic
 4. Using correct file: `app.bin` (raw binary)
-5. Firmware size < 80KB
+5. Firmware size < 240KB
 6. CRC32 calculated correctly
 
 **Verify OTA characteristic**:
@@ -512,7 +522,7 @@ gpio_set_output_value(IO_PORTB_04, 0);
 - Enable notifications before sending commands
 
 **Common errors**:
-- Error 0x02: Firmware size too large (> 80KB)
+- Error 0x02: Firmware size too large (> 240KB)
 - Error 0x05: Flash write failed (check VM area)
 - Error 0x09: CRC mismatch (recalculate CRC32)
 - No response: Notifications not enabled
@@ -570,7 +580,7 @@ gpio_set_output_value(IO_PORTB_04, 0);
 ```
 Total: 512KB
 ├── Firmware: ~232KB
-├── VM (OTA): 80KB
+├── VM (OTA): 240KB
 ├── BTIF: 4KB
 └── Available: ~196KB
 ```
