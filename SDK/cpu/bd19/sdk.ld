@@ -1183,7 +1183,7 @@ SECTIONS
         acl_tx_pool = .;
         *(.bredr_tx_bulk)
 
-        acl_tx_pool_end = acl_tx_pool + (3 * 512);
+        acl_tx_pool_end = acl_tx_pool + (5 * 512);
 
 
 
@@ -1192,7 +1192,7 @@ SECTIONS
         acl_rx_pool = .;
         *(.bredr_rx_bulk)
 
-        acl_rx_pool_end = acl_rx_pool + (3 * 512);
+        acl_rx_pool_end = acl_rx_pool + (5 * 512);
 
 
 

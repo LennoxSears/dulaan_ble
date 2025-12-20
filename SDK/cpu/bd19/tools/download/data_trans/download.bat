@@ -10,8 +10,7 @@ copy ..\..\p11_code.bin .
 copy ..\..\script.ver .
 copy ..\..\flash_params.bin
 
-..\..\isd_download.exe ..\..\isd_config.ini -tonorflash -dev bd19 -boot 0x2000 -div8 -wait 300 -uboot ..\..\uboot.boot -app ..\..\app.bin ..\..\cfg_tool.bin -res ..\..\p11_code.bin -uboot_compress -flash-params flash_params.bin
-:: -format all
+..\..\isd_download.exe ..\..\isd_config.ini -tonorflash -dev bd19 -boot 0x2000 -div8 -wait 300 -uboot ..\..\uboot.boot -app ..\..\app.bin ..\..\cfg_tool.bin -res ..\..\p11_code.bin -uboot_compress -flash-params flash_params.bin  -key AC690X-A2E8.key  -format all
 ::-reboot 2500
 
 @rem É¾³ýÁÙÊ±ÎÄ¼þ-format all
