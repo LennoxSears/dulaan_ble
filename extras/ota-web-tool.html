@@ -272,10 +272,15 @@
         
         <div class="info-box">
             <strong>Requirements:</strong><br>
-            • Chrome/Edge browser (Android or Desktop)<br>
-            • HTTPS connection (or localhost)<br>
-            • Firmware file must be &lt; 80KB<br>
-            • Device must be advertising as "VibMotor"
+            • Chrome/Edge browser (Android 6.0+ or Desktop)<br>
+            • <strong>Must use HTTP server (not file://)</strong><br>
+            • Firmware file must be &lt; 240KB<br>
+            • Device must be advertising as "VibMotor"<br>
+            <br>
+            <strong>Android Setup:</strong><br>
+            1. Install "Simple HTTP Server" app<br>
+            2. Point to folder containing this file<br>
+            3. Open http://localhost:8080/ota-web-tool.html
         </div>
         
         <div id="log" class="log"></div>
@@ -412,8 +417,8 @@
                 firmwareData = new Uint8Array(event.target.result);
                 const sizeKB = (firmwareData.length / 1024).toFixed(2);
                 
-                if (firmwareData.length > 80 * 1024) {
-                    log(`File too large: ${sizeKB} KB (max 80 KB)`, 'error');
+                if (firmwareData.length > 240 * 1024) {
+                    log(`File too large: ${sizeKB} KB (max 240 KB)`, 'error');
                     setStatus('Error: Firmware too large', 'error');
                     firmwareData = null;
                     fileLabel.textContent = '📁 Select Firmware File (app.bin)';
@@ -558,7 +563,21 @@
         if (!navigator.bluetooth) {
             setStatus('Web Bluetooth not supported', 'error');
             connectBtn.disabled = true;
-            log('Web Bluetooth API not available. Use Chrome/Edge on Android or Desktop.', 'error');
+            
+            // Check if it's HTTPS issue
+            if (window.location.protocol === 'file:') {
+                log('ERROR: Cannot use file:// protocol on Android', 'error');
+                log('Solution: Serve via HTTP server:', 'error');
+                log('1. Install "Simple HTTP Server" app from Play Store', 'error');
+                log('2. Or use: python3 -m http.server 8000', 'error');
+                log('3. Then open: http://localhost:8000/extras/ota-web-tool.html', 'error');
+            } else if (window.location.protocol === 'http:' && window.location.hostname !== 'localhost' && window.location.hostname !== '127.0.0.1') {
+                log('ERROR: Web Bluetooth requires HTTPS (except localhost)', 'error');
+                log('Current URL: ' + window.location.href, 'error');
+                log('Solution: Use HTTPS or localhost', 'error');
+            } else {
+                log('Web Bluetooth API not available. Use Chrome/Edge on Android or Desktop.', 'error');
+            }
         }
     </script>
 </body>

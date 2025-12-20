@@ -30,7 +30,7 @@ Bluetooth Low Energy (BLE) firmware for vibration motor control on JieLi AC632N 
 ### OTA Support
 - **Protocol**: Custom BLE OTA (simple 3-command protocol)
 - **Characteristic UUID**: `9A531A2D-594F-4E2B-B123-5F739A2D594F`
-- **VM Storage**: 80KB flash
+- **VM Storage**: 240KB flash
 - **Compatible**: Any BLE app (nRF Connect, custom app)
 - **Features**: Progress notifications, CRC32 verification, auto-reboot
 
@@ -254,7 +254,7 @@ App sends START command
 vm_att_write_callback()
     ↓
 vm_ble_handle_ota_write()
-    ↓ (validates size < 80KB)
+    ↓ (validates size < 240KB)
 vm_ota_start()
     ↓ (erases VM flash area)
 Sends notification: 01 00 (Ready)
@@ -397,8 +397,14 @@ SDK/cpu/bd19/tools/app.bin
 
 **Location**: `extras/ota-web-tool.html`
 
+**Online Access (Easiest)**:
+- **URL**: `https://lennoxsears.github.io/dulaan_ble/extras/ota-web-tool.html`
+- Works in China mainland
+- No setup needed - just open URL in Chrome
+- See `extras/DEPLOYMENT.md` for setup instructions
+
 **Simple 3-step process**:
-1. Open `ota-web-tool.html` in Chrome/Edge (Android or Desktop)
+1. Open URL in Chrome/Edge (Android or Desktop)
 2. Click "Connect" → select "VibMotor"
 3. Select `app.bin` file → click "Start Update"
 
@@ -412,18 +418,18 @@ SDK/cpu/bd19/tools/app.bin
 
 **Requirements**:
 - Chrome/Edge browser (Android 6.0+ or Desktop)
-- HTTPS connection (or open as `file://` for local testing)
-- Firmware file < 80KB
+- HTTPS connection (use online URL or local HTTP server)
+- Firmware file < 240KB
 
-**Usage**:
+**Local Development** (optional):
 ```bash
-# Option 1: Open directly (file://)
-# Just double-click ota-web-tool.html
-
-# Option 2: Serve via HTTPS (for remote access)
+# If you need to test locally
+cd extras
 python3 -m http.server 8000
-# Then open: http://localhost:8000/extras/ota-web-tool.html
+# Open: http://localhost:8000/ota-web-tool.html
 ```
+
+For deployment options, see `extras/DEPLOYMENT.md`
 
 ### Manual Testing with nRF Connect
 
@@ -498,11 +504,11 @@ gpio_set_output_value(IO_PORTB_04, 0);
 ### OTA Fails
 
 **Check**:
-1. VM size: 80KB in `isd_config.ini`
+1. VM size: 240KB in `isd_config.ini`
 2. OTA characteristic present: `9A53...`
 3. Notifications enabled on OTA characteristic
 4. Using correct file: `app.bin` (raw binary)
-5. Firmware size < 80KB
+5. Firmware size < 240KB
 6. CRC32 calculated correctly
 
 **Verify OTA characteristic**:
@@ -512,7 +518,7 @@ gpio_set_output_value(IO_PORTB_04, 0);
 - Enable notifications before sending commands
 
 **Common errors**:
-- Error 0x02: Firmware size too large (> 80KB)
+- Error 0x02: Firmware size too large (> 240KB)
 - Error 0x05: Flash write failed (check VM area)
 - Error 0x09: CRC mismatch (recalculate CRC32)
 - No response: Notifications not enabled
@@ -570,7 +576,7 @@ gpio_set_output_value(IO_PORTB_04, 0);
 ```
 Total: 512KB
 ├── Firmware: ~232KB
-├── VM (OTA): 80KB
+├── VM (OTA): 240KB
 ├── BTIF: 4KB
 └── Available: ~196KB
 ```
