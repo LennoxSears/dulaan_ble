@@ -10,6 +10,8 @@
 #include "le/sm.h"
 #include "le/le_user.h"
 #include "app_power_manage.h"  /* For get_vbat_percent() */
+#include "vm.h"  /* For VM flash operations */
+#include "system/includes.h"  /* For cpu_reset() */
 
 /* Logging */
 #define log_info(fmt, ...)  printf("[VM_BLE] " fmt, ##__VA_ARGS__)
@@ -17,6 +19,22 @@
 
 /* Connection handle for notifications */
 static uint16_t vm_connection_handle = 0;
+
+/* OTA state machine */
+typedef enum {
+    OTA_STATE_IDLE = 0,
+    OTA_STATE_RECEIVING,
+    OTA_STATE_VERIFYING
+} ota_state_t;
+
+static ota_state_t ota_state = OTA_STATE_IDLE;
+static uint32_t ota_total_size = 0;
+static uint32_t ota_received_size = 0;
+static uint32_t ota_expected_crc = 0;
+
+/* Forward declarations */
+static void ota_send_notification(uint16_t conn_handle, uint8_t status, uint8_t value);
+static uint32_t ota_calculate_crc32(uint32_t addr, uint32_t size);
 
 int vm_ble_handle_motor_write(uint16_t conn_handle, const uint8_t *data, uint16_t len)
 {
@@ -139,22 +157,18 @@ static int vm_att_write_callback(hci_con_handle_t connection_handle, uint16_t at
         return 0;
     }
 
-#if RCSP_BTMATE_EN
-    /* Handle RCSP OTA write */
-    if (att_handle == ATT_CHARACTERISTIC_ae01_02_VALUE_HANDLE) {
-        log_info("RCSP write: %d bytes\n", buffer_size);
-        ble_gatt_server_receive_update_data(NULL, buffer, buffer_size);
-        return 0;
+    /* Handle custom OTA characteristic write */
+    if (att_handle == ATT_CHARACTERISTIC_VM_OTA_VALUE_HANDLE) {
+        return vm_ble_handle_ota_write(connection_handle, buffer, buffer_size);
     }
 
-    /* Handle RCSP CCC writes */
-    if (att_handle == ATT_CHARACTERISTIC_ae02_02_CLIENT_CONFIGURATION_HANDLE) {
-        log_info("RCSP ae02 CCC write: 0x%02x\n", buffer[0]);
-        ble_gatt_server_set_update_send(connection_handle, ATT_CHARACTERISTIC_ae02_02_VALUE_HANDLE, ATT_OP_AUTO_READ_CCC);
+    /* Handle OTA CCC write */
+    if (att_handle == ATT_CHARACTERISTIC_VM_OTA_CLIENT_CONFIGURATION_HANDLE) {
+        log_info("OTA CCC write: 0x%02x\n", buffer[0]);
+        ble_gatt_server_set_update_send(connection_handle, ATT_CHARACTERISTIC_VM_OTA_VALUE_HANDLE, ATT_OP_AUTO_READ_CCC);
         ble_gatt_server_characteristic_ccc_set(connection_handle, att_handle, buffer[0]);
         return 0;
     }
-#endif
 
     /* Not our characteristic, let other handlers process it */
     return 0;
@@ -284,4 +298,191 @@ void vm_ble_service_deinit(void)
     /* Note: BLE stack cleanup (ble_comm_exit) should be called
      * by the main application during shutdown, not by individual services.
      */
+}
+
+/*
+ * OTA Helper Functions
+ */
+
+/* Send OTA status notification */
+static void ota_send_notification(uint16_t conn_handle, uint8_t status, uint8_t value)
+{
+    uint8_t notify_data[2];
+    notify_data[0] = status;
+    notify_data[1] = value;
+    
+    ble_comm_att_send_data(conn_handle, 
+                           ATT_CHARACTERISTIC_VM_OTA_VALUE_HANDLE,
+                           notify_data, 2,
+                           ATT_OP_AUTO_READ_CCC);
+}
+
+/* Calculate CRC32 for firmware verification */
+static uint32_t ota_calculate_crc32(uint32_t addr, uint32_t size)
+{
+    uint32_t crc = 0xFFFFFFFF;
+    uint8_t buffer[256];
+    uint32_t offset = 0;
+    
+    while (offset < size) {
+        uint32_t chunk_size = (size - offset) > 256 ? 256 : (size - offset);
+        vm_read(buffer, chunk_size, addr + offset);
+        
+        for (uint32_t i = 0; i < chunk_size; i++) {
+            crc ^= buffer[i];
+            for (int j = 0; j < 8; j++) {
+                if (crc & 1) {
+                    crc = (crc >> 1) ^ 0xEDB88320;
+                } else {
+                    crc >>= 1;
+                }
+            }
+        }
+        offset += chunk_size;
+    }
+    
+    return ~crc;
+}
+
+/*
+ * OTA Write Handler - implements custom OTA protocol
+ */
+int vm_ble_handle_ota_write(uint16_t conn_handle, const uint8_t *data, uint16_t len)
+{
+    if (len < 1) {
+        log_error("OTA: Invalid packet length\n");
+        return 0x0D;  /* ATT_ERROR_INVALID_ATTRIBUTE_VALUE_LENGTH */
+    }
+    
+    uint8_t cmd = data[0];
+    
+    switch (cmd) {
+        case VM_OTA_CMD_START: {
+            /* Start OTA: [0x01][size_low][size_high][size_mid][size_top] */
+            if (len != 5) {
+                log_error("OTA: Invalid START packet length\n");
+                ota_send_notification(conn_handle, VM_OTA_STATUS_ERROR, 0x01);
+                return 0x0D;
+            }
+            
+            ota_total_size = data[1] | (data[2] << 8) | (data[3] << 16) | (data[4] << 24);
+            
+            if (ota_total_size == 0 || ota_total_size > VM_OTA_MAX_SIZE) {
+                log_error("OTA: Invalid firmware size: %d\n", ota_total_size);
+                ota_send_notification(conn_handle, VM_OTA_STATUS_ERROR, 0x02);
+                return 0x0E;  /* ATT_ERROR_VALUE_NOT_ALLOWED */
+            }
+            
+            log_info("OTA: Start, size=%d bytes\n", ota_total_size);
+            
+            /* Erase flash area */
+            vm_erase(VM_OTA_START_ADDR, ota_total_size);
+            
+            ota_received_size = 0;
+            ota_state = OTA_STATE_RECEIVING;
+            
+            /* Send ready notification */
+            ota_send_notification(conn_handle, VM_OTA_STATUS_READY, 0x00);
+            break;
+        }
+        
+        case VM_OTA_CMD_DATA: {
+            /* Data chunk: [0x02][seq_low][seq_high][data...] */
+            if (ota_state != OTA_STATE_RECEIVING) {
+                log_error("OTA: Not in receiving state\n");
+                ota_send_notification(conn_handle, VM_OTA_STATUS_ERROR, 0x03);
+                return 0x0E;
+            }
+            
+            if (len < 4) {
+                log_error("OTA: Invalid DATA packet length\n");
+                ota_send_notification(conn_handle, VM_OTA_STATUS_ERROR, 0x04);
+                return 0x0D;
+            }
+            
+            uint16_t seq = data[1] | (data[2] << 8);
+            uint16_t data_len = len - 3;
+            const uint8_t *firmware_data = &data[3];
+            
+            /* Write to flash */
+            int ret = vm_write(firmware_data, data_len, VM_OTA_START_ADDR + ota_received_size);
+            if (ret != data_len) {
+                log_error("OTA: Flash write failed\n");
+                ota_send_notification(conn_handle, VM_OTA_STATUS_ERROR, 0x05);
+                ota_state = OTA_STATE_IDLE;
+                return 0x0E;
+            }
+            
+            ota_received_size += data_len;
+            
+            /* Send progress notification every 10% */
+            uint8_t progress = (ota_received_size * 100) / ota_total_size;
+            static uint8_t last_progress = 0;
+            if (progress >= last_progress + 10) {
+                log_info("OTA: Progress %d%%\n", progress);
+                ota_send_notification(conn_handle, VM_OTA_STATUS_PROGRESS, progress);
+                last_progress = progress;
+            }
+            break;
+        }
+        
+        case VM_OTA_CMD_FINISH: {
+            /* Finish OTA: [0x03][crc_low][crc_high][crc_mid][crc_top] */
+            if (ota_state != OTA_STATE_RECEIVING) {
+                log_error("OTA: Not in receiving state\n");
+                ota_send_notification(conn_handle, VM_OTA_STATUS_ERROR, 0x06);
+                return 0x0E;
+            }
+            
+            if (len != 5) {
+                log_error("OTA: Invalid FINISH packet length\n");
+                ota_send_notification(conn_handle, VM_OTA_STATUS_ERROR, 0x07);
+                return 0x0D;
+            }
+            
+            ota_expected_crc = data[1] | (data[2] << 8) | (data[3] << 16) | (data[4] << 24);
+            
+            log_info("OTA: Finish, received=%d, expected=%d\n", ota_received_size, ota_total_size);
+            
+            /* Verify size */
+            if (ota_received_size != ota_total_size) {
+                log_error("OTA: Size mismatch\n");
+                ota_send_notification(conn_handle, VM_OTA_STATUS_ERROR, 0x08);
+                ota_state = OTA_STATE_IDLE;
+                return 0x0E;
+            }
+            
+            /* Verify CRC */
+            ota_state = OTA_STATE_VERIFYING;
+            uint32_t calculated_crc = ota_calculate_crc32(VM_OTA_START_ADDR, ota_total_size);
+            
+            if (calculated_crc != ota_expected_crc) {
+                log_error("OTA: CRC mismatch (expected=0x%08x, got=0x%08x)\n", 
+                         ota_expected_crc, calculated_crc);
+                ota_send_notification(conn_handle, VM_OTA_STATUS_ERROR, 0x09);
+                ota_state = OTA_STATE_IDLE;
+                return 0x0E;
+            }
+            
+            log_info("OTA: Verification passed, rebooting...\n");
+            
+            /* Send success notification */
+            ota_send_notification(conn_handle, VM_OTA_STATUS_SUCCESS, 0x00);
+            
+            /* Wait a bit for notification to be sent */
+            os_time_dly(10);  /* 100ms delay */
+            
+            /* Reboot to apply update */
+            cpu_reset();
+            
+            break;
+        }
+        
+        default:
+            log_error("OTA: Unknown command: 0x%02x\n", cmd);
+            ota_send_notification(conn_handle, VM_OTA_STATUS_ERROR, 0xFF);
+            return 0x0E;
+    }
+    
+    return 0;  /* Success */
 }

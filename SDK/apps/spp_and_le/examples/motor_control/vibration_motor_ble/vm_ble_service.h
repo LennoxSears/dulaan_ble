@@ -31,6 +31,19 @@
 #define VM_FIRMWARE_VERSION_HIGH  1
 #define VM_FIRMWARE_VERSION_LOW   0
 
+/* OTA constants */
+#define VM_OTA_CMD_START    0x01  /* Start OTA: [0x01][size_low][size_high][size_mid][size_top] */
+#define VM_OTA_CMD_DATA     0x02  /* Data chunk: [0x02][seq_low][seq_high][data...] */
+#define VM_OTA_CMD_FINISH   0x03  /* Finish OTA: [0x03][crc_low][crc_high][crc_mid][crc_top] */
+
+#define VM_OTA_STATUS_READY    0x01  /* Ready for OTA */
+#define VM_OTA_STATUS_PROGRESS 0x02  /* Progress update */
+#define VM_OTA_STATUS_SUCCESS  0x03  /* OTA success */
+#define VM_OTA_STATUS_ERROR    0xFF  /* OTA error */
+
+#define VM_OTA_START_ADDR   0x0      /* VM flash start address */
+#define VM_OTA_MAX_SIZE     (80*1024) /* 80KB max firmware size */
+
 /* Error codes */
 #define VM_ERR_OK               0
 #define VM_ERR_INVALID_LENGTH   1
@@ -83,6 +96,16 @@ int vm_ble_handle_motor_write(uint16_t conn_handle, const uint8_t *data, uint16_
  * @return VM_ERR_OK on success, error code otherwise
  */
 int vm_ble_handle_device_info_write(uint16_t conn_handle, const uint8_t *data, uint16_t len);
+
+/**
+ * Handle incoming write request to OTA characteristic
+ * Implements custom OTA protocol for firmware updates
+ * @param conn_handle Connection handle
+ * @param data Packet data (command + payload)
+ * @param len Packet length
+ * @return 0 on success, ATT error code otherwise
+ */
+int vm_ble_handle_ota_write(uint16_t conn_handle, const uint8_t *data, uint16_t len);
 
 /**
  * Get battery level (0-100%)
