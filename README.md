@@ -397,8 +397,14 @@ SDK/cpu/bd19/tools/app.bin
 
 **Location**: `extras/ota-web-tool.html`
 
+**Online Access (Easiest)**:
+- **URL**: `https://lennoxsears.github.io/dulaan_ble/extras/ota-web-tool.html`
+- Works in China mainland
+- No setup needed - just open URL in Chrome
+- See `extras/DEPLOYMENT.md` for setup instructions
+
 **Simple 3-step process**:
-1. Open `ota-web-tool.html` in Chrome/Edge (Android or Desktop)
+1. Open URL in Chrome/Edge (Android or Desktop)
 2. Click "Connect" → select "VibMotor"
 3. Select `app.bin` file → click "Start Update"
 
@@ -412,28 +418,18 @@ SDK/cpu/bd19/tools/app.bin
 
 **Requirements**:
 - Chrome/Edge browser (Android 6.0+ or Desktop)
-- **Must use HTTP server** (Web Bluetooth doesn't work with `file://` on Android)
+- HTTPS connection (use online URL or local HTTP server)
 - Firmware file < 240KB
 
-**Usage on Android**:
+**Local Development** (optional):
 ```bash
-# Method 1: Install "Simple HTTP Server" app from Play Store
-# - Point to folder containing ota-web-tool.html
-# - Open http://localhost:8080/ota-web-tool.html in Chrome
-
-# Method 2: Use Termux
-pkg install python
-cd /path/to/dulaan_ble/extras
-python -m http.server 8000
-# Then open: http://localhost:8000/ota-web-tool.html
-```
-
-**Usage on Desktop**:
-```bash
-# Serve via HTTP
+# If you need to test locally
+cd extras
 python3 -m http.server 8000
-# Then open: http://localhost:8000/extras/ota-web-tool.html
+# Open: http://localhost:8000/ota-web-tool.html
 ```
+
+For deployment options, see `extras/DEPLOYMENT.md`
 
 ### Manual Testing with nRF Connect
 
