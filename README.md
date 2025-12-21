@@ -46,11 +46,14 @@ Bluetooth Low Energy (BLE) firmware for vibration motor control on JieLi AC632N 
 ### Pairing Flow
 
 1. Device advertises as "VibMotor" (LE General Discoverable)
-2. Phone connects to device
-3. BLE stack automatically triggers LESC pairing (`slave_set_wait_security = 1`)
-4. System prompt: "Pair with VibMotor?" (Just-Works, no PIN)
-5. Pairing success → BLE stack stores LTK (Long Term Key)
-6. Subsequent connections: Automatic encryption, no prompts
+2. Phone connects to device (no prompt yet)
+3. App sends first command (motor control or device info)
+4. BLE stack triggers LESC pairing (`slave_set_wait_security = 1`)
+5. System prompt: "Pair with VibMotor?" (Just-Works, no PIN)
+6. Pairing success → BLE stack stores LTK (Long Term Key)
+7. Subsequent connections: Automatic encryption, no prompts
+
+**Note**: Pairing is triggered on first write, not on connection. This prevents double pairing prompts.
 
 ### Security Features
 

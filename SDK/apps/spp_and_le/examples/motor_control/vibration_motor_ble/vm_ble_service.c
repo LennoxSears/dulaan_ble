@@ -223,7 +223,7 @@ static int vm_event_packet_handler(int event, u8 *packet, u16 size, u8 *ext_para
 
 /* Security Manager configuration (LESC + Just-Works) */
 static const sm_cfg_t vm_sm_config = {
-    .slave_security_auto_req = 1,  /* Auto request security */
+    .slave_security_auto_req = 0,  /* Don't auto-request (wait for first write) */
     .slave_set_wait_security = 1,  /* Enforce encryption before writes */
     .io_capabilities = IO_CAPABILITY_NO_INPUT_NO_OUTPUT,  /* Just-Works (no MITM) */
     .authentication_req_flags = SM_AUTHREQ_BONDING | SM_AUTHREQ_SECURE_CONNECTION,  /* LESC + Bonding */
