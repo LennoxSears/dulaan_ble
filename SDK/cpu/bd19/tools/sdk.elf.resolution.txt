@@ -3049,8 +3049,9 @@ obj/Release/apps/spp_and_le/examples/motor_control/vibration_motor_ble/vm_ble_se
 -r=obj/Release/apps/spp_and_le/examples/motor_control/vibration_motor_ble/vm_ble_service.o,vm_motor_deinit,l
 -r=obj/Release/apps/spp_and_le/examples/motor_control/vibration_motor_ble/vm_ble_service.o,vm_ble_handle_ota_write,pl
 -r=obj/Release/apps/spp_and_le/examples/motor_control/vibration_motor_ble/vm_ble_service.o,dual_bank_passive_update_init,l
--r=obj/Release/apps/spp_and_le/examples/motor_control/vibration_motor_ble/vm_ble_service.o,dual_bank_update_write,l
+-r=obj/Release/apps/spp_and_le/examples/motor_control/vibration_motor_ble/vm_ble_service.o,dual_bank_update_allow_check,l
 -r=obj/Release/apps/spp_and_le/examples/motor_control/vibration_motor_ble/vm_ble_service.o,dual_bank_passive_update_exit,l
+-r=obj/Release/apps/spp_and_le/examples/motor_control/vibration_motor_ble/vm_ble_service.o,dual_bank_update_write,l
 -r=obj/Release/apps/spp_and_le/examples/motor_control/vibration_motor_ble/vm_ble_service.o,dual_bank_update_burn_boot_info,l
 -r=obj/Release/apps/spp_and_le/examples/motor_control/vibration_motor_ble/vm_ble_service.o,os_time_dly,
 -r=obj/Release/apps/spp_and_le/examples/motor_control/vibration_motor_ble/vm_ble_service.o,ble_comm_att_send_data,l
