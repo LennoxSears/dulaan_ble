@@ -347,19 +347,22 @@ int vm_ble_handle_ota_write(uint16_t conn_handle, const uint8_t *data, uint16_t 
             
             log_info("OTA: Start, size=%d bytes\n", ota_total_size);
             
-            /* Workaround: dual_bank_passive_update_init checks available space
-             * Tell it a smaller size (120KB) to pass the check, but we'll write the full data
-             * This works because in single-bank mode, we have 240KB VM space available */
-            uint32_t init_size = (ota_total_size > 120*1024) ? (120*1024) : ota_total_size;
-            uint32_t ret = dual_bank_passive_update_init(0, init_size, 240, NULL);
+            /* Initialize dual-bank update with actual firmware size */
+            uint32_t ret = dual_bank_passive_update_init(0, ota_total_size, 240, NULL);
             if (ret != 0) {
                 log_error("OTA: Init failed: %d\n", ret);
                 ota_send_notification(conn_handle, VM_OTA_STATUS_ERROR, 0x02);
                 return 0x0E;
             }
             
-            /* Note: We initialized with smaller size, but will write full ota_total_size
-             * The SDK's space check is overly conservative for single-bank mode */
+            /* Check if enough space available */
+            ret = dual_bank_update_allow_check(ota_total_size);
+            if (ret != 0) {
+                log_error("OTA: Not enough space: %d\n", ret);
+                dual_bank_passive_update_exit(NULL);
+                ota_send_notification(conn_handle, VM_OTA_STATUS_ERROR, 0x02);
+                return 0x0E;
+            }
             
             ota_received_size = 0;
             ota_state = OTA_STATE_RECEIVING;
