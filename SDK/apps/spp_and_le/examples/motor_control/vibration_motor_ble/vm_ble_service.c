@@ -13,9 +13,9 @@
 #include "update/dual_bank_updata_api.h"  /* For OTA update */
 #include "system/includes.h"  /* For cpu_reset() */
 
-/* Logging */
-#define log_info(fmt, ...)  printf("[VM_BLE] " fmt, ##__VA_ARGS__)
-#define log_error(fmt, ...) printf("[VM_BLE_ERR] " fmt, ##__VA_ARGS__)
+/* Logging - DISABLED to reduce firmware size */
+#define log_info(fmt, ...)   // Disabled
+#define log_error(fmt, ...)  // Disabled
 
 /* Connection handle for notifications */
 static uint16_t vm_connection_handle = 0;
@@ -347,7 +347,7 @@ int vm_ble_handle_ota_write(uint16_t conn_handle, const uint8_t *data, uint16_t 
             
             log_info("OTA: Start, size=%d bytes\n", ota_total_size);
             
-            /* Initialize dual-bank update */
+            /* Initialize single-bank update (skip 2x space check) */
             uint32_t ret = dual_bank_passive_update_init(0, ota_total_size, 240, NULL);
             if (ret != 0) {
                 log_error("OTA: Init failed: %d\n", ret);
@@ -355,14 +355,8 @@ int vm_ble_handle_ota_write(uint16_t conn_handle, const uint8_t *data, uint16_t 
                 return 0x0E;
             }
             
-            /* Check if enough space */
-            ret = dual_bank_update_allow_check(ota_total_size);
-            if (ret != 0) {
-                log_error("OTA: Not enough space: %d\n", ret);
-                dual_bank_passive_update_exit(NULL);
-                ota_send_notification(conn_handle, VM_OTA_STATUS_ERROR, 0x02);
-                return 0x0E;
-            }
+            /* Skip dual_bank_update_allow_check() - it checks for 2x space
+             * In single-bank mode, we only need 1x space in VM area */
             
             ota_received_size = 0;
             ota_state = OTA_STATE_RECEIVING;

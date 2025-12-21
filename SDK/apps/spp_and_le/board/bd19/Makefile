@@ -76,9 +76,6 @@ CFLAGS := \
 	-mllvm -inline-threshold=5 \
 	-Oz \
 	-integrated-as \
-	-g \
-	-O0 \
-	-flto \
 	-Os \
 	-Wcast-align \
 	-w \
