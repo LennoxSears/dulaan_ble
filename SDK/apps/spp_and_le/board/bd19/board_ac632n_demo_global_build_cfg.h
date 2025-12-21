@@ -8,7 +8,7 @@
 
 /* Following Macros Affect Periods Of Both Code Compiling And Post-build */
 
-#define CONFIG_DOUBLE_BANK_ENABLE               1       //单双备份选择(若打开了改宏,FLASH结构变为双备份结构，适用于接入第三方协议的OTA， PS: JL-OTA同样支持双备份升级, 需要根据实际FLASH大小同时配置CONFIG_FLASH_SIZE)
+#define CONFIG_DOUBLE_BANK_ENABLE               0       //单双备份选择(若打开了改宏,FLASH结构变为双备份结构，适用于接入第三方协议的OTA， PS: JL-OTA同样支持双备份升级, 需要根据实际FLASH大小同时配置CONFIG_FLASH_SIZE)
 #define CONFIG_APP_OTA_ENABLE                   0       //RCSP已移除，使用自定义OTA (Custom OTA, not RCSP)
 
 #define CONFIG_UPDATE_JUMP_TO_MASK              0   	//配置升级到loader的方式0为直接reset,1为跳转(适用于芯片电源由IO口KEEP住的方案,需要注意检查跳转前是否将使用DMA的硬件模块全部关闭)
@@ -90,7 +90,7 @@
 //#define CONFIG_VDDIO_LVD_LEVEL                  4 ////VDDIO_LVD挡位，0: 1.55V   1: 1.70V   2: 1.85V   3: 2.00V   4: 2.15V   5: 2.30V   6: 2.45V   7: 2.60V
 
 //with single-bank mode,actual vm size should larger this VM_LEAST_SIZE,and dual bank mode,actual vm size equals this;
-#define CONFIG_VM_LEAST_SIZE                    240K
+#define CONFIG_VM_LEAST_SIZE                    272K
 //config whether erased this area when do a update,1-No Operation,0-Erase
 #define CONFIG_VM_OPT							1
 
