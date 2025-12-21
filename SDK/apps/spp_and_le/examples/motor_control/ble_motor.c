@@ -47,7 +47,7 @@ static const gatt_server_cfg_t motor_server_init_cfg = {
 
 /* GATT control block */
 static gatt_ctrl_t motor_gatt_control_block = {
-    .mtu_size = 23,
+    .mtu_size = 512,  /* Large MTU for OTA data transfer (240 byte chunks) */
     .cbuffer_size = 512,
     .multi_dev_flag = 0,
     .server_config = &motor_server_init_cfg,
