@@ -42,7 +42,7 @@
 #define VM_OTA_STATUS_ERROR    0xFF  /* OTA error */
 
 #define VM_OTA_START_ADDR   0x0      /* VM flash start address */
-#define VM_OTA_MAX_SIZE     (240*1024) /* 240KB max firmware size */
+#define VM_OTA_MAX_SIZE     (500*1024) /* 500KB max firmware size (dual-bank mode with 1MB flash) */
 
 /* Error codes */
 #define VM_ERR_OK               0
