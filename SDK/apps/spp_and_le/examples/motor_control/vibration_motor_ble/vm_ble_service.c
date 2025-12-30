@@ -370,8 +370,19 @@ int vm_ble_handle_ota_write(uint16_t conn_handle, const uint8_t *data, uint16_t 
             
             log_info("OTA: Start, size=%d bytes\n", ota_total_size);
             
-            /* Initialize dual-bank update with actual firmware size */
-            uint32_t ret = dual_bank_passive_update_init(0, ota_total_size, 240, NULL);
+            /* Check buffer size before init */
+            uint32_t max_buf = get_dual_bank_passive_update_max_buf();
+            log_info("OTA: Max buffer size: %d bytes\n", max_buf);
+            
+            if (max_buf < 2048) {  /* Need at least 2KB buffer for safety */
+                log_error("OTA: Buffer too small: %d bytes (need 2048)\n", max_buf);
+                ota_send_notification(conn_handle, VM_OTA_STATUS_ERROR, 0x02);
+                return 0x0E;
+            }
+            
+            /* Initialize dual-bank update with smaller packet size for safety */
+            /* Use 128 bytes instead of 240 to reduce buffer pressure */
+            uint32_t ret = dual_bank_passive_update_init(0, ota_total_size, 128, NULL);
             if (ret != 0) {
                 log_error("OTA: Init failed: %d\n", ret);
                 ota_send_notification(conn_handle, VM_OTA_STATUS_ERROR, 0x02);

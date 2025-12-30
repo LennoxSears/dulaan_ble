@@ -73,7 +73,7 @@ class OTAController {
         
         // MTU configuration
         this.MTU_SIZE = 244; // Recommended MTU for OTA
-        this.DATA_CHUNK_SIZE = 240; // MTU - 3 bytes for header
+        this.DATA_CHUNK_SIZE = 128; // Reduced from 240 to reduce buffer pressure on device
         
         // Adaptive delay parameters
         this.currentDelay = 50;  // Start with 50ms
@@ -550,8 +550,8 @@ class OTAController {
 
         try {
             const totalPackets = Math.ceil(this.totalSize / this.DATA_CHUNK_SIZE);
-            const PACKET_DELAY = 2000;  // 2 second delay for testing (extremely conservative)
-            console.log(getTimestamp() + ` OTA: Sending ${totalPackets} packets with ${PACKET_DELAY}ms delay (testing)...`);
+            const PACKET_DELAY = 5000;  // 5 second delay - give device time to write to flash
+            console.log(getTimestamp() + ` OTA: Sending ${totalPackets} packets (128 bytes each) with ${PACKET_DELAY}ms delay...`);
             
             let packetsSent = 0;
             
