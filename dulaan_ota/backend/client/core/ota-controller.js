@@ -518,8 +518,10 @@ class OTAController {
                 const progress = Math.floor((this.sentBytes / this.totalSize) * 100);
                 this.updateProgress(progress);
 
-                // Small delay to avoid overwhelming the device
-                await this.delay(10);
+                // Delay to prevent BLE queue overflow
+                // Capacitor BLE plugin queues writes even with writeWithoutResponse
+                // Need sufficient delay to allow queue to drain
+                await this.delay(50);
             }
 
             console.log('OTA: All data sent, sending FINISH command');
