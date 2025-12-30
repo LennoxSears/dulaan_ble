@@ -62,7 +62,7 @@ class OTAController {
         
         // Adaptive delay parameters
         this.currentDelay = 50;  // Start with 50ms
-        this.minDelay = 30;      // Minimum delay (fast devices)
+        this.minDelay = 50;      // Minimum delay (don't speed up - device can't keep up)
         this.maxDelay = 150;     // Maximum delay (slow devices)
         this.consecutiveSuccesses = 0;
         this.maxRetries = 3;     // Retry failed writes
@@ -563,6 +563,13 @@ class OTAController {
                 // Update progress locally (device will also send notifications)
                 const progress = Math.floor((this.sentBytes / this.totalSize) * 100);
                 this.updateProgress(progress);
+
+                // Extra pause every 50 packets to let device catch up with flash writes
+                if (this.currentSequence % 50 === 0) {
+                    const batchNum = Math.floor(this.currentSequence / 50);
+                    console.log(`OTA: Batch ${batchNum} complete (${(this.sentBytes / 1024).toFixed(1)}KB sent), pausing for device...`);
+                    await this.delay(500);  // 500ms pause to let device write to flash
+                }
 
                 // Adaptive delay to prevent BLE queue overflow
                 await this.delay(this.currentDelay);
