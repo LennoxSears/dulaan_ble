@@ -540,7 +540,8 @@ class OTAController {
 
         try {
             const totalPackets = Math.ceil(this.totalSize / this.DATA_CHUNK_SIZE);
-            console.log(`OTA: Sending ${totalPackets} packets with 100ms delay (callback not supported)...`);
+            const PACKET_DELAY = 500;  // 500ms delay for testing (very conservative)
+            console.log(`OTA: Sending ${totalPackets} packets with ${PACKET_DELAY}ms delay (testing)...`);
             
             while (this.sentBytes < this.totalSize) {
                 const remaining = this.totalSize - this.sentBytes;
@@ -571,7 +572,7 @@ class OTAController {
                         );
                         
                         // Fixed delay to prevent buffer overflow (callback not supported by SDK)
-                        await this.delay(100);  // 100ms delay between packets
+                        await this.delay(PACKET_DELAY);  // Conservative delay for testing
                         
                         sent = true;
                         break;  // Success, exit retry loop
