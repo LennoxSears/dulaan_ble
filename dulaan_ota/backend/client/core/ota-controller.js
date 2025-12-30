@@ -540,7 +540,7 @@ class OTAController {
 
         try {
             const totalPackets = Math.ceil(this.totalSize / this.DATA_CHUNK_SIZE);
-            const PACKET_DELAY = 500;  // 500ms delay for testing (very conservative)
+            const PACKET_DELAY = 2000;  // 2 second delay for testing (extremely conservative)
             console.log(`OTA: Sending ${totalPackets} packets with ${PACKET_DELAY}ms delay (testing)...`);
             
             while (this.sentBytes < this.totalSize) {
