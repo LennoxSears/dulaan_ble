@@ -1,0 +1,22 @@
+{
+  "name": "dulaan-backend",
+  "version": "1.0.0",
+  "description": "Dulaan Motor Control Backend with Direct Audio Processing",
+  "author": "Dulaan Team",
+  "license": "Apache-2.0",
+  "scripts": {
+    "install": "npm install && cd functions && npm install",
+    "build": "cd client && node build.js",
+    "serve": "cd functions && npm run serve",
+    "deploy": "cd functions && npm run deploy",
+    "logs": "cd functions && npm run logs",
+    "test": "open test-real-api.html"
+  },
+  "devDependencies": {
+    "eslint": "^8.57.1"
+  },
+  "engines": {
+    "node": "22"
+  },
+  "dependencies": {}
+}

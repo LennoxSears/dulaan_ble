@@ -1,0 +1,19 @@
+{
+  "appId": "com.dulaan.app",
+  "appName": "dulaan",
+  "webDir": "dist",
+  "plugins": {
+    "SplashScreen": {
+      "launchAutoHide": true
+    }
+  },
+  "server": {
+    "androidScheme": "http",
+    "allowNavigation": [
+      "http://65.20.104.213:3333/*"
+    ],
+    "cleartext": true,
+    "hostname": "localhost"
+  },
+  "loggingBehavior": "none"
+}

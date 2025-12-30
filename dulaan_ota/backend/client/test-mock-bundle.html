@@ -1,0 +1,229 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Test Mock Bundle</title>
+    <style>
+        body { font-family: Arial, sans-serif; margin: 20px; }
+        .test-section { margin: 20px 0; padding: 15px; border: 1px solid #ddd; border-radius: 5px; }
+        .success { color: green; }
+        .error { color: red; }
+        .info { color: blue; }
+        button { margin: 5px; padding: 10px 15px; }
+        #log { background: #f5f5f5; padding: 10px; height: 300px; overflow-y: auto; font-family: monospace; font-size: 12px; }
+    </style>
+</head>
+<body>
+    <h1>🧪 Mock Bundle Test</h1>
+    
+    <div class="test-section">
+        <h3>Mock Status</h3>
+        <p id="mock-status">Checking...</p>
+    </div>
+    
+    <div class="test-section">
+        <h3>BLE Mock Test</h3>
+        <button onclick="testBLE()">Test BLE Operations</button>
+        <p id="ble-status">Ready</p>
+    </div>
+    
+    <div class="test-section">
+        <h3>Voice Recorder Mock Test</h3>
+        <button onclick="testVoiceRecorder()">Test Voice Recording</button>
+        <button onclick="stopVoiceRecorder()">Stop Recording</button>
+        <p id="voice-status">Ready</p>
+    </div>
+    
+    <div class="test-section">
+        <h3>Pattern Control Test</h3>
+        <button onclick="testPatternControl()">Test Pattern Playback</button>
+        <button onclick="stopPattern()">Stop Pattern</button>
+        <p id="pattern-status">Ready</p>
+    </div>
+    
+    <div class="test-section">
+        <h3>Console Log</h3>
+        <div id="log"></div>
+        <button onclick="clearLog()">Clear Log</button>
+    </div>
+
+    <!-- Load the mock bundle -->
+    <script src="dulaan-browser-bundled-mock.js"></script>
+    
+    <script>
+        // Capture console logs
+        const originalLog = console.log;
+        const originalWarn = console.warn;
+        const originalError = console.error;
+        
+        function addToLog(type, ...args) {
+            const logDiv = document.getElementById('log');
+            const timestamp = new Date().toLocaleTimeString();
+            const message = args.join(' ');
+            logDiv.innerHTML += `<div class="${type}">[${timestamp}] ${type.toUpperCase()}: ${message}</div>`;
+            logDiv.scrollTop = logDiv.scrollHeight;
+        }
+        
+        console.log = (...args) => {
+            originalLog(...args);
+            addToLog('info', ...args);
+        };
+        
+        console.warn = (...args) => {
+            originalWarn(...args);
+            addToLog('error', ...args);
+        };
+        
+        console.error = (...args) => {
+            originalError(...args);
+            addToLog('error', ...args);
+        };
+        
+        // Wait for bundle to load
+        setTimeout(() => {
+            checkMockStatus();
+        }, 500);
+        
+        function checkMockStatus() {
+            const statusEl = document.getElementById('mock-status');
+            
+            const bleAvailable = window.BleClient ? '✅' : '❌';
+            const voiceAvailable = window.Capacitor?.Plugins?.VoiceRecorder ? '✅' : '❌';
+            const dulaanAvailable = window.dulaan ? '✅' : '❌';
+            
+            statusEl.innerHTML = `
+                <div>BLE Mock: ${bleAvailable} ${window.BleClient ? 'Available' : 'Not Available'}</div>
+                <div>Voice Mock: ${voiceAvailable} ${window.Capacitor?.Plugins?.VoiceRecorder ? 'Available' : 'Not Available'}</div>
+                <div>Dulaan SDK: ${dulaanAvailable} ${window.dulaan ? 'Available' : 'Not Available'}</div>
+            `;
+        }
+        
+        async function testBLE() {
+            const statusEl = document.getElementById('ble-status');
+            statusEl.innerHTML = 'Testing BLE...';
+            
+            try {
+                if (!window.dulaan) {
+                    throw new Error('Dulaan SDK not available');
+                }
+                
+                console.log('Starting BLE test...');
+                
+                // Test scan
+                statusEl.innerHTML = 'Scanning for devices...';
+                const scanResult = await window.dulaan.scan(3000);
+                console.log('Scan result:', scanResult);
+                
+                // Test connect
+                const devices = window.dulaan.getScanResults();
+                if (devices.length > 0) {
+                    statusEl.innerHTML = 'Connecting to device...';
+                    const connected = await window.dulaan.connect(devices[0].deviceId);
+                    console.log('Connect result:', connected);
+                    
+                    if (connected) {
+                        // Test write
+                        statusEl.innerHTML = 'Testing motor control...';
+                        await window.dulaan.setPower(128);
+                        console.log('Motor PWM set to 128');
+                        
+                        setTimeout(async () => {
+                            await window.dulaan.setPower(0);
+                            console.log('Motor PWM set to 0');
+                            statusEl.innerHTML = '✅ BLE test completed successfully!';
+                        }, 1000);
+                    }
+                } else {
+                    statusEl.innerHTML = '❌ No devices found';
+                }
+                
+            } catch (error) {
+                console.error('BLE test error:', error);
+                statusEl.innerHTML = `❌ BLE test failed: ${error.message}`;
+            }
+        }
+        
+        async function testVoiceRecorder() {
+            const statusEl = document.getElementById('voice-status');
+            statusEl.innerHTML = 'Testing voice recorder...';
+            
+            try {
+                if (!window.dulaan) {
+                    throw new Error('Dulaan SDK not available');
+                }
+                
+                console.log('Starting voice recorder test...');
+                
+                // Start ambient mode (uses voice recorder)
+                statusEl.innerHTML = 'Starting ambient mode...';
+                await window.dulaan.startMode('ambient');
+                console.log('Ambient mode started');
+                
+                statusEl.innerHTML = '✅ Voice recorder test started! Check console for audio chunks.';
+                
+            } catch (error) {
+                console.error('Voice recorder test error:', error);
+                statusEl.innerHTML = `❌ Voice recorder test failed: ${error.message}`;
+            }
+        }
+        
+        async function stopVoiceRecorder() {
+            try {
+                if (window.dulaan) {
+                    await window.dulaan.stopMode();
+                    document.getElementById('voice-status').innerHTML = 'Voice recorder stopped';
+                    console.log('Voice recorder stopped');
+                }
+            } catch (error) {
+                console.error('Stop voice recorder error:', error);
+            }
+        }
+        
+        async function testPatternControl() {
+            const statusEl = document.getElementById('pattern-status');
+            statusEl.innerHTML = 'Testing pattern control...';
+            
+            try {
+                if (!window.dulaan) {
+                    throw new Error('Dulaan SDK not available');
+                }
+                
+                console.log('Starting pattern control test...');
+                
+                // Start pattern mode
+                statusEl.innerHTML = 'Starting pattern mode...';
+                await window.dulaan.startMode('pattern');
+                console.log('Pattern mode started');
+                
+                // Play a pattern
+                statusEl.innerHTML = 'Playing gentle_waves pattern...';
+                await window.dulaan.playPattern('gentle_waves', { loops: 2 });
+                console.log('Pattern started');
+                
+                statusEl.innerHTML = '✅ Pattern control test started! Check console for PWM values.';
+                
+            } catch (error) {
+                console.error('Pattern control test error:', error);
+                statusEl.innerHTML = `❌ Pattern control test failed: ${error.message}`;
+            }
+        }
+        
+        async function stopPattern() {
+            try {
+                if (window.dulaan) {
+                    await window.dulaan.stopPattern();
+                    document.getElementById('pattern-status').innerHTML = 'Pattern stopped';
+                    console.log('Pattern stopped');
+                }
+            } catch (error) {
+                console.error('Stop pattern error:', error);
+            }
+        }
+        
+        function clearLog() {
+            document.getElementById('log').innerHTML = '';
+        }
+    </script>
+</body>
+</html>

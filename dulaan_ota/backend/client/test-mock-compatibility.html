@@ -1,0 +1,261 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Mock Compatibility Test</title>
+    <style>
+        body { font-family: Arial, sans-serif; margin: 20px; }
+        .test { margin: 10px 0; padding: 10px; border: 1px solid #ddd; border-radius: 4px; }
+        .success { background: #d4edda; color: #155724; }
+        .error { background: #f8d7da; color: #721c24; }
+        .info { background: #d1ecf1; color: #0c5460; }
+        .log { background: #f8f9fa; padding: 10px; font-family: monospace; font-size: 12px; max-height: 300px; overflow-y: auto; }
+    </style>
+</head>
+<body>
+    <h1>🧪 Mock Compatibility Test</h1>
+    <p>Testing mock implementations with actual SDK components</p>
+    
+    <div id="results"></div>
+    <div id="log" class="log"></div>
+    
+    <!-- Load mocks first -->
+    <script src="mocks/mock-ble.js"></script>
+    <script src="mocks/mock-voice-recorder.js"></script>
+    
+    <!-- Load bundled SDK -->
+    <script src="dulaan-browser-bundled-mock.js"></script>
+    
+    <script>
+        const results = document.getElementById('results');
+        const logDiv = document.getElementById('log');
+        
+        function log(message, type = 'info') {
+            console.log(message);
+            logDiv.innerHTML += `<div class="${type}">[${new Date().toLocaleTimeString()}] ${message}</div>`;
+            logDiv.scrollTop = logDiv.scrollHeight;
+        }
+        
+        function addResult(test, success, details = '') {
+            const div = document.createElement('div');
+            div.className = `test ${success ? 'success' : 'error'}`;
+            div.innerHTML = `<strong>${success ? '✅' : '❌'} ${test}</strong><br>${details}`;
+            results.appendChild(div);
+        }
+        
+        async function runTests() {
+            log('Starting mock compatibility tests...');
+            
+            // Test 1: Mock Installation
+            try {
+                const bleAvailable = !!(window.BleClient);
+                const voiceAvailable = !!(window.Capacitor?.Plugins?.VoiceRecorder);
+                
+                if (bleAvailable && voiceAvailable) {
+                    addResult('Mock Installation', true, 'Both BLE and VoiceRecorder mocks are available');
+                    log('✅ Mocks installed correctly', 'success');
+                } else {
+                    addResult('Mock Installation', false, `BLE: ${bleAvailable}, Voice: ${voiceAvailable}`);
+                    log('❌ Mock installation incomplete', 'error');
+                    return;
+                }
+            } catch (error) {
+                addResult('Mock Installation', false, error.message);
+                log(`❌ Mock installation error: ${error.message}`, 'error');
+                return;
+            }
+            
+            // Test 2: SDK Initialization
+            try {
+                log('Testing SDK initialization...');
+                const sdk = new window.DulaanSDK();
+                
+                if (sdk && sdk.motor && sdk.modes) {
+                    addResult('SDK Initialization', true, 'SDK created with motor controller and modes');
+                    log('✅ SDK initialized successfully', 'success');
+                } else {
+                    addResult('SDK Initialization', false, 'SDK missing required components');
+                    log('❌ SDK initialization incomplete', 'error');
+                    return;
+                }
+                
+                // Test 3: Motor Controller with BLE Mock
+                try {
+                    log('Testing motor controller with BLE mock...');
+                    const initResult = await sdk.motor.initialize();
+                    
+                    if (initResult) {
+                        addResult('Motor Controller Init', true, 'Motor controller initialized with BLE mock');
+                        log('✅ Motor controller working with BLE mock', 'success');
+                    } else {
+                        addResult('Motor Controller Init', false, 'Motor controller initialization failed');
+                        log('❌ Motor controller init failed', 'error');
+                    }
+                } catch (error) {
+                    addResult('Motor Controller Init', false, error.message);
+                    log(`❌ Motor controller error: ${error.message}`, 'error');
+                }
+                
+                // Test 4: BLE Operations
+                try {
+                    log('Testing BLE operations...');
+                    
+                    // Test scan
+                    let deviceFound = false;
+                    sdk.motor.onScanResult = (device) => {
+                        deviceFound = true;
+                        log(`Found device: ${device.name}`, 'info');
+                    };
+                    
+                    await sdk.motor.scan(2000); // 2 second scan
+                    
+                    if (deviceFound) {
+                        addResult('BLE Scan', true, 'Mock devices found during scan');
+                        log('✅ BLE scan working with mock', 'success');
+                    } else {
+                        addResult('BLE Scan', false, 'No mock devices found');
+                        log('❌ BLE scan failed to find mock devices', 'error');
+                    }
+                    
+                    // Test connection
+                    try {
+                        await sdk.motor.connect('MOCK_DEVICE_001');
+                        if (sdk.motor.isConnected) {
+                            addResult('BLE Connect', true, 'Connected to mock device');
+                            log('✅ BLE connection working with mock', 'success');
+                            
+                            // Test motor write
+                            await sdk.motor.write(128);
+                            addResult('Motor Write', true, 'PWM value written to mock device');
+                            log('✅ Motor write working with mock', 'success');
+                            
+                        } else {
+                            addResult('BLE Connect', false, 'Connection failed');
+                            log('❌ BLE connection failed', 'error');
+                        }
+                    } catch (error) {
+                        addResult('BLE Connect', false, error.message);
+                        log(`❌ BLE connection error: ${error.message}`, 'error');
+                    }
+                    
+                } catch (error) {
+                    addResult('BLE Operations', false, error.message);
+                    log(`❌ BLE operations error: ${error.message}`, 'error');
+                }
+                
+                // Test 5: Voice Recorder Operations
+                try {
+                    log('Testing VoiceRecorder operations...');
+                    
+                    const voice = window.Capacitor.Plugins.VoiceRecorder;
+                    
+                    // Test permission
+                    const permission = await voice.requestAudioRecordingPermission();
+                    if (permission.value) {
+                        addResult('Voice Permission', true, 'Audio permission granted by mock');
+                        log('✅ Voice permission working with mock', 'success');
+                    } else {
+                        addResult('Voice Permission', false, 'Permission denied');
+                        log('❌ Voice permission failed', 'error');
+                    }
+                    
+                    // Test streaming
+                    let chunkReceived = false;
+                    voice.addListener('audioChunk', (data) => {
+                        chunkReceived = true;
+                        log(`Received audio chunk: ${data.chunk.substring(0, 20)}...`, 'info');
+                    });
+                    
+                    await voice.startStreaming();
+                    
+                    // Wait for chunks
+                    setTimeout(async () => {
+                        await voice.stopStreaming();
+                        await voice.removeAllListeners();
+                        
+                        if (chunkReceived) {
+                            addResult('Voice Streaming', true, 'Audio chunks received from mock');
+                            log('✅ Voice streaming working with mock', 'success');
+                        } else {
+                            addResult('Voice Streaming', false, 'No audio chunks received');
+                            log('❌ Voice streaming failed', 'error');
+                        }
+                    }, 2000);
+                    
+                } catch (error) {
+                    addResult('Voice Operations', false, error.message);
+                    log(`❌ Voice operations error: ${error.message}`, 'error');
+                }
+                
+                // Test 6: Mode Integration
+                try {
+                    log('Testing mode integration...');
+                    
+                    // Test Ambient Control mode
+                    if (sdk.modes.ambient) {
+                        const ambientResult = await sdk.modes.ambient.start();
+                        if (ambientResult) {
+                            addResult('Ambient Mode', true, 'Ambient control started with mocks');
+                            log('✅ Ambient mode working with mocks', 'success');
+                            
+                            setTimeout(async () => {
+                                await sdk.modes.ambient.stop();
+                                log('Ambient mode stopped', 'info');
+                            }, 3000);
+                        } else {
+                            addResult('Ambient Mode', false, 'Failed to start ambient mode');
+                            log('❌ Ambient mode failed', 'error');
+                        }
+                    } else {
+                        addResult('Ambient Mode', false, 'Ambient mode not available');
+                        log('❌ Ambient mode not found in SDK', 'error');
+                    }
+                    
+                    // Test AI Voice Control mode
+                    if (sdk.modes.aiVoice) {
+                        setTimeout(async () => {
+                            try {
+                                const aiResult = await sdk.modes.aiVoice.start();
+                                if (aiResult) {
+                                    addResult('AI Voice Mode', true, 'AI voice control started with mocks');
+                                    log('✅ AI voice mode working with mocks', 'success');
+                                    
+                                    setTimeout(async () => {
+                                        await sdk.modes.aiVoice.stop();
+                                        log('AI voice mode stopped', 'info');
+                                    }, 3000);
+                                } else {
+                                    addResult('AI Voice Mode', false, 'Failed to start AI voice mode');
+                                    log('❌ AI voice mode failed', 'error');
+                                }
+                            } catch (error) {
+                                addResult('AI Voice Mode', false, error.message);
+                                log(`❌ AI voice mode error: ${error.message}`, 'error');
+                            }
+                        }, 4000);
+                    } else {
+                        addResult('AI Voice Mode', false, 'AI voice mode not available');
+                        log('❌ AI voice mode not found in SDK', 'error');
+                    }
+                    
+                } catch (error) {
+                    addResult('Mode Integration', false, error.message);
+                    log(`❌ Mode integration error: ${error.message}`, 'error');
+                }
+                
+            } catch (error) {
+                addResult('SDK Initialization', false, error.message);
+                log(`❌ SDK initialization error: ${error.message}`, 'error');
+            }
+            
+            log('All tests completed!', 'success');
+        }
+        
+        // Start tests when page loads
+        document.addEventListener('DOMContentLoaded', () => {
+            setTimeout(runTests, 1000); // Give time for everything to load
+        });
+    </script>
+</body>
+</html>

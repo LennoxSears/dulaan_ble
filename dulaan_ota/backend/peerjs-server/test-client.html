@@ -1,0 +1,304 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Dulaan PeerJS Test Client</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 20px;
+            background-color: #f5f5f5;
+        }
+        .container {
+            background: white;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+        .status {
+            padding: 10px;
+            margin: 10px 0;
+            border-radius: 4px;
+            font-weight: bold;
+        }
+        .status.connected { background-color: #d4edda; color: #155724; }
+        .status.disconnected { background-color: #f8d7da; color: #721c24; }
+        .status.connecting { background-color: #fff3cd; color: #856404; }
+        input, button {
+            padding: 10px;
+            margin: 5px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+        }
+        button {
+            background-color: #007bff;
+            color: white;
+            cursor: pointer;
+        }
+        button:hover {
+            background-color: #0056b3;
+        }
+        button:disabled {
+            background-color: #6c757d;
+            cursor: not-allowed;
+        }
+        .messages {
+            height: 200px;
+            overflow-y: auto;
+            border: 1px solid #ddd;
+            padding: 10px;
+            margin: 10px 0;
+            background-color: #f8f9fa;
+        }
+        .message {
+            margin: 5px 0;
+            padding: 5px;
+            border-left: 3px solid #007bff;
+            background-color: white;
+        }
+        .peer-id {
+            font-family: monospace;
+            background-color: #e9ecef;
+            padding: 2px 4px;
+            border-radius: 3px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🔗 Dulaan PeerJS Test Client</h1>
+        
+        <div class="status disconnected" id="status">
+            Disconnected
+        </div>
+
+        <div>
+            <h3>Server Configuration</h3>
+            <input type="text" id="serverHost" placeholder="Server Host (e.g., your-app.appspot.com)" value="34.38.33.102">
+            <input type="number" id="serverPort" placeholder="Port" value="9000">
+            <input type="text" id="serverPath" placeholder="Path" value="/">
+            <label>
+                <input type="checkbox" id="useSecure"> Use HTTPS/WSS
+            </label>
+        </div>
+
+        <div>
+            <h3>Connection</h3>
+            <button onclick="connect()" id="connectBtn">Connect to Server</button>
+            <button onclick="disconnect()" id="disconnectBtn" disabled>Disconnect</button>
+        </div>
+
+        <div>
+            <p><strong>Your Peer ID:</strong> <span class="peer-id" id="myPeerId">Not connected</span></p>
+        </div>
+
+        <div>
+            <h3>Connect to Peer</h3>
+            <input type="text" id="targetPeerId" placeholder="Target Peer ID">
+            <button onclick="connectToPeer()" id="connectPeerBtn" disabled>Connect to Peer</button>
+        </div>
+
+        <div>
+            <h3>Send Message</h3>
+            <input type="text" id="messageInput" placeholder="Type a message...">
+            <button onclick="sendMessage()" id="sendBtn" disabled>Send Message</button>
+        </div>
+
+        <div>
+            <h3>Messages</h3>
+            <div class="messages" id="messages"></div>
+            <button onclick="clearMessages()">Clear Messages</button>
+        </div>
+
+        <div>
+            <h3>Connection Info</h3>
+            <p><strong>Connected Peers:</strong> <span id="connectedPeers">0</span></p>
+            <p><strong>Server Status:</strong> <span id="serverStatus">Unknown</span></p>
+        </div>
+    </div>
+
+    <script src="https://unpkg.com/peerjs@1.5.4/dist/peerjs.min.js"></script>
+    <script>
+        let peer = null;
+        let connections = new Map();
+
+        function updateStatus(message, type = 'disconnected') {
+            const statusEl = document.getElementById('status');
+            statusEl.textContent = message;
+            statusEl.className = `status ${type}`;
+        }
+
+        function addMessage(message, type = 'info') {
+            const messagesEl = document.getElementById('messages');
+            const messageEl = document.createElement('div');
+            messageEl.className = 'message';
+            messageEl.innerHTML = `<strong>[${new Date().toLocaleTimeString()}]</strong> ${message}`;
+            messagesEl.appendChild(messageEl);
+            messagesEl.scrollTop = messagesEl.scrollHeight;
+        }
+
+        function clearMessages() {
+            document.getElementById('messages').innerHTML = '';
+        }
+
+        function updateUI() {
+            const connected = peer && !peer.destroyed;
+            document.getElementById('connectBtn').disabled = connected;
+            document.getElementById('disconnectBtn').disabled = !connected;
+            document.getElementById('connectPeerBtn').disabled = !connected;
+            document.getElementById('sendBtn').disabled = !connected || connections.size === 0;
+            document.getElementById('connectedPeers').textContent = connections.size;
+        }
+
+        function connect() {
+            const host = document.getElementById('serverHost').value;
+            const port = parseInt(document.getElementById('serverPort').value);
+            const path = document.getElementById('serverPath').value;
+            const secure = document.getElementById('useSecure').checked;
+
+            updateStatus('Connecting...', 'connecting');
+            addMessage(`Connecting to ${secure ? 'https' : 'http'}://${host}:${port}${path}`);
+
+            const config = {
+                host: host,
+                port: port,
+                path: path,
+                secure: secure,
+                debug: 2, // Enable debug logging
+                config: {
+                    iceServers: [
+                        { urls: 'stun:stun.l.google.com:19302' },
+                        { urls: 'stun:stun1.l.google.com:19302' }
+                    ]
+                }
+            };
+
+            peer = new Peer(config);
+
+            peer.on('open', (id) => {
+                updateStatus(`Connected as: ${id}`, 'connected');
+                document.getElementById('myPeerId').textContent = id;
+                document.getElementById('serverStatus').textContent = 'Connected';
+                addMessage(`✅ Connected to server with ID: ${id}`, 'success');
+                updateUI();
+            });
+
+            peer.on('connection', (conn) => {
+                addMessage(`📞 Incoming connection from: ${conn.peer}`);
+                setupConnection(conn);
+            });
+
+            peer.on('error', (error) => {
+                updateStatus(`Error: ${error.message}`, 'disconnected');
+                addMessage(`❌ Error: ${error.message}`, 'error');
+                document.getElementById('serverStatus').textContent = 'Error';
+                updateUI();
+            });
+
+            peer.on('disconnected', () => {
+                updateStatus('Disconnected from server', 'disconnected');
+                addMessage('🔌 Disconnected from server');
+                document.getElementById('serverStatus').textContent = 'Disconnected';
+                updateUI();
+            });
+
+            peer.on('close', () => {
+                updateStatus('Connection closed', 'disconnected');
+                addMessage('🔒 Connection closed');
+                document.getElementById('serverStatus').textContent = 'Closed';
+                updateUI();
+            });
+        }
+
+        function disconnect() {
+            if (peer) {
+                peer.destroy();
+                peer = null;
+                connections.clear();
+                updateStatus('Disconnected', 'disconnected');
+                document.getElementById('myPeerId').textContent = 'Not connected';
+                document.getElementById('serverStatus').textContent = 'Disconnected';
+                addMessage('🔌 Disconnected from server');
+                updateUI();
+            }
+        }
+
+        function connectToPeer() {
+            const targetId = document.getElementById('targetPeerId').value.trim();
+            if (!targetId) {
+                alert('Please enter a target peer ID');
+                return;
+            }
+
+            if (connections.has(targetId)) {
+                addMessage(`Already connected to ${targetId}`);
+                return;
+            }
+
+            addMessage(`🔗 Connecting to peer: ${targetId}`);
+            const conn = peer.connect(targetId);
+            setupConnection(conn);
+        }
+
+        function setupConnection(conn) {
+            conn.on('open', () => {
+                connections.set(conn.peer, conn);
+                addMessage(`✅ Connected to peer: ${conn.peer}`);
+                updateUI();
+            });
+
+            conn.on('data', (data) => {
+                addMessage(`📨 Message from ${conn.peer}: ${data}`);
+            });
+
+            conn.on('close', () => {
+                connections.delete(conn.peer);
+                addMessage(`🔌 Peer ${conn.peer} disconnected`);
+                updateUI();
+            });
+
+            conn.on('error', (error) => {
+                addMessage(`❌ Connection error with ${conn.peer}: ${error.message}`);
+                connections.delete(conn.peer);
+                updateUI();
+            });
+        }
+
+        function sendMessage() {
+            const message = document.getElementById('messageInput').value.trim();
+            if (!message) {
+                alert('Please enter a message');
+                return;
+            }
+
+            if (connections.size === 0) {
+                alert('No peer connections available');
+                return;
+            }
+
+            connections.forEach((conn, peerId) => {
+                if (conn.open) {
+                    conn.send(message);
+                    addMessage(`📤 Sent to ${peerId}: ${message}`);
+                }
+            });
+
+            document.getElementById('messageInput').value = '';
+        }
+
+        // Allow sending message with Enter key
+        document.getElementById('messageInput').addEventListener('keypress', (e) => {
+            if (e.key === 'Enter') {
+                sendMessage();
+            }
+        });
+
+        // Initialize UI
+        updateUI();
+        addMessage('🚀 PeerJS Test Client loaded. Configure server settings and click Connect.');
+    </script>
+</body>
+</html>

@@ -1,0 +1,7 @@
+<?xml version='1.0' encoding='utf-8'?>
+<resources>
+    <string name="app_name">dulaan</string>
+    <string name="title_activity_main">dulaan</string>
+    <string name="package_name">com.dulaan.app</string>
+    <string name="custom_url_scheme">com.dulaan.app</string>
+</resources>

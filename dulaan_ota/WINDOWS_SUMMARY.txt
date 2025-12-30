@@ -1,0 +1,113 @@
+================================================================================
+DULAAN OTA - WINDOWS BUILD INSTRUCTIONS
+================================================================================
+
+QUICK START (3 Steps):
+----------------------
+
+1. Install Node.js from: https://nodejs.org/
+   (Restart computer after installation)
+
+2. Open Command Prompt in the dulaan_ota folder and run:
+   cd dulaan
+   build-ota.bat
+
+3. Open in Android Studio:
+   npx cap open android
+
+Then click Run button in Android Studio!
+
+================================================================================
+
+WHAT WAS CREATED FOR WINDOWS:
+-----------------------------
+
+✓ backend/client/build-simple.bat     - Builds the SDK bundle
+✓ dulaan/build-ota.bat                - Builds the complete app
+✓ BUILD_WINDOWS.md                    - Detailed Windows instructions
+✓ QUICKSTART_WINDOWS.md               - Step-by-step guide
+
+================================================================================
+
+IF BATCH SCRIPTS DON'T WORK:
+----------------------------
+
+Manual steps:
+
+1. Build backend:
+   cd backend\client
+   build-simple.bat
+
+2. Copy bundle:
+   copy dulaan-browser-bundled.js ..\..\dulaan\src\dulaan-bundle.js
+
+3. Build app:
+   cd ..\..\dulaan
+   npm install
+   npm run build
+   npx cap sync android
+
+4. Open Android Studio:
+   npx cap open android
+
+================================================================================
+
+TROUBLESHOOTING:
+---------------
+
+Problem: "npm is not recognized"
+Solution: Install Node.js from nodejs.org and restart Command Prompt
+
+Problem: "Cannot find module"
+Solution: Run "npm install" in the dulaan folder
+
+Problem: Batch script fails
+Solution: Use the manual steps above
+
+Problem: Android Studio won't open
+Solution: Install Android Studio from developer.android.com/studio
+
+================================================================================
+
+TESTING:
+-------
+
+After building, you can test in browser:
+1. cd dulaan\src
+2. python -m http.server 8000
+3. Open: http://localhost:8000/index.html
+
+(Note: Real BLE connection requires Android device)
+
+================================================================================
+
+FILES YOU NEED:
+--------------
+
+To update firmware, you need:
+- VibMotor(BLE) device
+- Firmware file (app.bin, must be < 240KB)
+- Android device with Bluetooth
+
+================================================================================
+
+DOCUMENTATION:
+-------------
+
+README.md                - Main documentation
+BUILD_WINDOWS.md         - Detailed Windows build guide
+QUICKSTART_WINDOWS.md    - Quick start for Windows users
+OTA_IMPLEMENTATION.md    - Technical implementation details
+
+================================================================================
+
+SUPPORT:
+-------
+
+If you get stuck:
+1. Read BUILD_WINDOWS.md for detailed instructions
+2. Check error messages in Command Prompt
+3. Check Android Studio Logcat for runtime errors
+4. Make sure Node.js is installed: node --version
+
+================================================================================

@@ -1,0 +1,22 @@
+# Gitpod
+.devcontainer/
+
+# Temporary files
+*.tmp
+*~
+temp-bundle.js
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# Editor files
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# Logs
+*.log
+npm-debug.log*
+yarn-debug.log*

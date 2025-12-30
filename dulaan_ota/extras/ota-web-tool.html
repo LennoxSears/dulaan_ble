@@ -1,0 +1,584 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>VibMotor OTA Update Tool</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            padding: 20px;
+        }
+        
+        .container {
+            background: white;
+            border-radius: 16px;
+            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+            max-width: 500px;
+            width: 100%;
+            padding: 40px;
+        }
+        
+        h1 {
+            color: #333;
+            margin-bottom: 10px;
+            font-size: 28px;
+        }
+        
+        .subtitle {
+            color: #666;
+            margin-bottom: 30px;
+            font-size: 14px;
+        }
+        
+        .status {
+            background: #f5f5f5;
+            border-radius: 8px;
+            padding: 15px;
+            margin-bottom: 20px;
+            font-size: 14px;
+            color: #666;
+            min-height: 50px;
+            display: flex;
+            align-items: center;
+        }
+        
+        .status.connected {
+            background: #d4edda;
+            color: #155724;
+        }
+        
+        .status.error {
+            background: #f8d7da;
+            color: #721c24;
+        }
+        
+        .status.updating {
+            background: #d1ecf1;
+            color: #0c5460;
+        }
+        
+        .btn {
+            width: 100%;
+            padding: 15px;
+            border: none;
+            border-radius: 8px;
+            font-size: 16px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s;
+            margin-bottom: 15px;
+        }
+        
+        .btn:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
+        
+        .btn-primary {
+            background: #667eea;
+            color: white;
+        }
+        
+        .btn-primary:hover:not(:disabled) {
+            background: #5568d3;
+            transform: translateY(-2px);
+            box-shadow: 0 5px 15px rgba(102, 126, 234, 0.4);
+        }
+        
+        .btn-success {
+            background: #28a745;
+            color: white;
+        }
+        
+        .btn-success:hover:not(:disabled) {
+            background: #218838;
+            transform: translateY(-2px);
+            box-shadow: 0 5px 15px rgba(40, 167, 69, 0.4);
+        }
+        
+        .btn-danger {
+            background: #dc3545;
+            color: white;
+        }
+        
+        .btn-danger:hover:not(:disabled) {
+            background: #c82333;
+        }
+        
+        .file-input-wrapper {
+            position: relative;
+            margin-bottom: 15px;
+        }
+        
+        .file-input-wrapper input[type="file"] {
+            position: absolute;
+            opacity: 0;
+            width: 100%;
+            height: 100%;
+            cursor: pointer;
+        }
+        
+        .file-input-label {
+            display: block;
+            padding: 15px;
+            background: #f8f9fa;
+            border: 2px dashed #dee2e6;
+            border-radius: 8px;
+            text-align: center;
+            color: #666;
+            cursor: pointer;
+            transition: all 0.3s;
+        }
+        
+        .file-input-label:hover {
+            border-color: #667eea;
+            background: #f0f2ff;
+        }
+        
+        .file-input-label.has-file {
+            border-color: #28a745;
+            background: #d4edda;
+            color: #155724;
+        }
+        
+        .progress-container {
+            margin-bottom: 20px;
+            display: none;
+        }
+        
+        .progress-container.visible {
+            display: block;
+        }
+        
+        .progress-bar {
+            width: 100%;
+            height: 30px;
+            background: #e9ecef;
+            border-radius: 15px;
+            overflow: hidden;
+            position: relative;
+        }
+        
+        .progress-fill {
+            height: 100%;
+            background: linear-gradient(90deg, #667eea 0%, #764ba2 100%);
+            transition: width 0.3s;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: white;
+            font-weight: 600;
+            font-size: 14px;
+        }
+        
+        .info-box {
+            background: #f8f9fa;
+            border-radius: 8px;
+            padding: 15px;
+            margin-top: 20px;
+            font-size: 13px;
+            color: #666;
+        }
+        
+        .info-box strong {
+            color: #333;
+        }
+        
+        .log {
+            background: #f8f9fa;
+            border-radius: 8px;
+            padding: 15px;
+            margin-top: 20px;
+            font-family: 'Courier New', monospace;
+            font-size: 12px;
+            max-height: 200px;
+            overflow-y: auto;
+            display: none;
+        }
+        
+        .log.visible {
+            display: block;
+        }
+        
+        .log-entry {
+            margin-bottom: 5px;
+            color: #666;
+        }
+        
+        .log-entry.error {
+            color: #dc3545;
+        }
+        
+        .log-entry.success {
+            color: #28a745;
+        }
+        
+        @media (max-width: 600px) {
+            .container {
+                padding: 30px 20px;
+            }
+            
+            h1 {
+                font-size: 24px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🔧 VibMotor OTA</h1>
+        <p class="subtitle">Firmware Update Tool</p>
+        
+        <div id="status" class="status">
+            Ready to connect
+        </div>
+        
+        <button id="connectBtn" class="btn btn-primary">
+            📡 Connect to Device
+        </button>
+        
+        <div class="file-input-wrapper">
+            <input type="file" id="fileInput" accept=".bin" />
+            <label for="fileInput" class="file-input-label" id="fileLabel">
+                📁 Select Firmware File (app.bin)
+            </label>
+        </div>
+        
+        <button id="updateBtn" class="btn btn-success" disabled>
+            🚀 Start Update
+        </button>
+        
+        <button id="disconnectBtn" class="btn btn-danger" style="display: none;">
+            ❌ Disconnect
+        </button>
+        
+        <div id="progressContainer" class="progress-container">
+            <div class="progress-bar">
+                <div id="progressFill" class="progress-fill" style="width: 0%">0%</div>
+            </div>
+        </div>
+        
+        <div class="info-box">
+            <strong>Requirements:</strong><br>
+            • Chrome/Edge browser (Android 6.0+ or Desktop)<br>
+            • <strong>Must use HTTP server (not file://)</strong><br>
+            • Firmware file must be &lt; 240KB<br>
+            • Device must be advertising as "VibMotor"<br>
+            <br>
+            <strong>Android Setup:</strong><br>
+            1. Install "Simple HTTP Server" app<br>
+            2. Point to folder containing this file<br>
+            3. Open http://localhost:8080/ota-web-tool.html
+        </div>
+        
+        <div id="log" class="log"></div>
+    </div>
+
+    <script>
+        // Web Bluetooth configuration
+        const SERVICE_UUID = '9a501a2d-594f-4e2b-b123-5f739a2d594f';
+        const OTA_CHAR_UUID = '9a531a2d-594f-4e2b-b123-5f739a2d594f';
+        
+        // State
+        let device = null;
+        let otaCharacteristic = null;
+        let firmwareData = null;
+        let isUpdating = false;
+        
+        // UI elements
+        const statusDiv = document.getElementById('status');
+        const connectBtn = document.getElementById('connectBtn');
+        const fileInput = document.getElementById('fileInput');
+        const fileLabel = document.getElementById('fileLabel');
+        const updateBtn = document.getElementById('updateBtn');
+        const disconnectBtn = document.getElementById('disconnectBtn');
+        const progressContainer = document.getElementById('progressContainer');
+        const progressFill = document.getElementById('progressFill');
+        const logDiv = document.getElementById('log');
+        
+        // Logging
+        function log(message, type = 'info') {
+            const entry = document.createElement('div');
+            entry.className = `log-entry ${type}`;
+            entry.textContent = `[${new Date().toLocaleTimeString()}] ${message}`;
+            logDiv.appendChild(entry);
+            logDiv.scrollTop = logDiv.scrollHeight;
+            logDiv.classList.add('visible');
+        }
+        
+        function setStatus(message, type = '') {
+            statusDiv.textContent = message;
+            statusDiv.className = `status ${type}`;
+        }
+        
+        function setProgress(percent) {
+            progressFill.style.width = `${percent}%`;
+            progressFill.textContent = `${percent}%`;
+        }
+        
+        // CRC32 calculation
+        function crc32(data) {
+            const table = new Uint32Array(256);
+            for (let i = 0; i < 256; i++) {
+                let c = i;
+                for (let j = 0; j < 8; j++) {
+                    c = (c & 1) ? (0xEDB88320 ^ (c >>> 1)) : (c >>> 1);
+                }
+                table[i] = c;
+            }
+            
+            let crc = 0xFFFFFFFF;
+            for (let i = 0; i < data.length; i++) {
+                crc = table[(crc ^ data[i]) & 0xFF] ^ (crc >>> 8);
+            }
+            return (crc ^ 0xFFFFFFFF) >>> 0;
+        }
+        
+        // Connect to device
+        connectBtn.addEventListener('click', async () => {
+            try {
+                log('Requesting Bluetooth device...');
+                setStatus('Scanning for devices...', 'updating');
+                
+                device = await navigator.bluetooth.requestDevice({
+                    filters: [
+                        { name: 'VibMotor' },
+                        { services: [SERVICE_UUID] }
+                    ],
+                    optionalServices: [SERVICE_UUID]
+                });
+                
+                log(`Found device: ${device.name}`);
+                setStatus('Connecting...', 'updating');
+                
+                const server = await device.gatt.connect();
+                log('Connected to GATT server');
+                
+                const service = await server.getPrimaryService(SERVICE_UUID);
+                log('Found OTA service');
+                
+                otaCharacteristic = await service.getCharacteristic(OTA_CHAR_UUID);
+                log('Found OTA characteristic');
+                
+                // Enable notifications
+                await otaCharacteristic.startNotifications();
+                otaCharacteristic.addEventListener('characteristicvaluechanged', handleNotification);
+                log('Notifications enabled');
+                
+                setStatus(`Connected to ${device.name}`, 'connected');
+                connectBtn.style.display = 'none';
+                disconnectBtn.style.display = 'block';
+                updateBtn.disabled = !firmwareData;
+                
+                device.addEventListener('gattserverdisconnected', onDisconnected);
+                
+            } catch (error) {
+                log(`Connection failed: ${error.message}`, 'error');
+                setStatus(`Error: ${error.message}`, 'error');
+            }
+        });
+        
+        // Disconnect
+        disconnectBtn.addEventListener('click', () => {
+            if (device && device.gatt.connected) {
+                device.gatt.disconnect();
+            }
+        });
+        
+        function onDisconnected() {
+            log('Device disconnected');
+            setStatus('Disconnected', 'error');
+            connectBtn.style.display = 'block';
+            disconnectBtn.style.display = 'none';
+            updateBtn.disabled = true;
+            otaCharacteristic = null;
+            device = null;
+        }
+        
+        // File selection
+        fileInput.addEventListener('change', (e) => {
+            const file = e.target.files[0];
+            if (!file) return;
+            
+            const reader = new FileReader();
+            reader.onload = (event) => {
+                firmwareData = new Uint8Array(event.target.result);
+                const sizeKB = (firmwareData.length / 1024).toFixed(2);
+                
+                if (firmwareData.length > 240 * 1024) {
+                    log(`File too large: ${sizeKB} KB (max 240 KB)`, 'error');
+                    setStatus('Error: Firmware too large', 'error');
+                    firmwareData = null;
+                    fileLabel.textContent = '📁 Select Firmware File (app.bin)';
+                    fileLabel.classList.remove('has-file');
+                    return;
+                }
+                
+                log(`Loaded firmware: ${file.name} (${sizeKB} KB)`);
+                fileLabel.textContent = `✅ ${file.name} (${sizeKB} KB)`;
+                fileLabel.classList.add('has-file');
+                updateBtn.disabled = !otaCharacteristic;
+            };
+            reader.readAsArrayBuffer(file);
+        });
+        
+        // Handle notifications from device
+        function handleNotification(event) {
+            const value = new Uint8Array(event.target.value.buffer);
+            const status = value[0];
+            const data = value[1];
+            
+            if (status === 0x01) {
+                log('Device ready to receive firmware', 'success');
+            } else if (status === 0x02) {
+                const percent = data;
+                setProgress(percent);
+                log(`Progress: ${percent}%`);
+            } else if (status === 0x03) {
+                log('Update successful! Device will reboot...', 'success');
+                setStatus('Update complete! Device rebooting...', 'connected');
+                setProgress(100);
+                isUpdating = false;
+                updateBtn.disabled = false;
+                setTimeout(() => {
+                    if (device && device.gatt.connected) {
+                        device.gatt.disconnect();
+                    }
+                }, 2000);
+            } else if (status === 0xFF) {
+                const errorCode = data;
+                const errorMsg = getErrorMessage(errorCode);
+                log(`Error 0x${errorCode.toString(16).padStart(2, '0')}: ${errorMsg}`, 'error');
+                setStatus(`Update failed: ${errorMsg}`, 'error');
+                isUpdating = false;
+                updateBtn.disabled = false;
+            }
+        }
+        
+        function getErrorMessage(code) {
+            const errors = {
+                0x01: 'Invalid START command',
+                0x02: 'Firmware size too large',
+                0x03: 'Not in receiving state',
+                0x04: 'Invalid DATA packet',
+                0x05: 'Flash write failed',
+                0x06: 'Not in receiving state',
+                0x07: 'Invalid FINISH command',
+                0x08: 'Size mismatch',
+                0x09: 'CRC verification failed',
+                0xFF: 'Unknown command'
+            };
+            return errors[code] || 'Unknown error';
+        }
+        
+        // Start OTA update
+        updateBtn.addEventListener('click', async () => {
+            if (!otaCharacteristic || !firmwareData || isUpdating) return;
+            
+            try {
+                isUpdating = true;
+                updateBtn.disabled = true;
+                progressContainer.classList.add('visible');
+                setProgress(0);
+                setStatus('Starting update...', 'updating');
+                
+                const size = firmwareData.length;
+                const crc = crc32(firmwareData);
+                
+                log(`Firmware size: ${size} bytes`);
+                log(`CRC32: 0x${crc.toString(16).padStart(8, '0')}`);
+                
+                // Send START command
+                const startCmd = new Uint8Array(5);
+                startCmd[0] = 0x01;
+                startCmd[1] = size & 0xFF;
+                startCmd[2] = (size >> 8) & 0xFF;
+                startCmd[3] = (size >> 16) & 0xFF;
+                startCmd[4] = (size >> 24) & 0xFF;
+                
+                log('Sending START command...');
+                await otaCharacteristic.writeValue(startCmd);
+                await sleep(500);
+                
+                // Send DATA packets
+                const chunkSize = 240;
+                const totalChunks = Math.ceil(size / chunkSize);
+                log(`Sending ${totalChunks} data packets...`);
+                
+                for (let i = 0; i < size; i += chunkSize) {
+                    const seq = Math.floor(i / chunkSize);
+                    const chunk = firmwareData.slice(i, Math.min(i + chunkSize, size));
+                    
+                    const dataCmd = new Uint8Array(3 + chunk.length);
+                    dataCmd[0] = 0x02;
+                    dataCmd[1] = seq & 0xFF;
+                    dataCmd[2] = (seq >> 8) & 0xFF;
+                    dataCmd.set(chunk, 3);
+                    
+                    await otaCharacteristic.writeValue(dataCmd);
+                    await sleep(20);
+                }
+                
+                log('All data sent, waiting for device...');
+                await sleep(1000);
+                
+                // Send FINISH command
+                const finishCmd = new Uint8Array(5);
+                finishCmd[0] = 0x03;
+                finishCmd[1] = crc & 0xFF;
+                finishCmd[2] = (crc >> 8) & 0xFF;
+                finishCmd[3] = (crc >> 16) & 0xFF;
+                finishCmd[4] = (crc >> 24) & 0xFF;
+                
+                log('Sending FINISH command...');
+                await otaCharacteristic.writeValue(finishCmd);
+                
+                log('Update process complete, waiting for device response...');
+                
+            } catch (error) {
+                log(`Update failed: ${error.message}`, 'error');
+                setStatus(`Error: ${error.message}`, 'error');
+                isUpdating = false;
+                updateBtn.disabled = false;
+            }
+        });
+        
+        function sleep(ms) {
+            return new Promise(resolve => setTimeout(resolve, ms));
+        }
+        
+        // Check Web Bluetooth support
+        if (!navigator.bluetooth) {
+            setStatus('Web Bluetooth not supported', 'error');
+            connectBtn.disabled = true;
+            
+            // Check if it's HTTPS issue
+            if (window.location.protocol === 'file:') {
+                log('ERROR: Cannot use file:// protocol on Android', 'error');
+                log('Solution: Serve via HTTP server:', 'error');
+                log('1. Install "Simple HTTP Server" app from Play Store', 'error');
+                log('2. Or use: python3 -m http.server 8000', 'error');
+                log('3. Then open: http://localhost:8000/extras/ota-web-tool.html', 'error');
+            } else if (window.location.protocol === 'http:' && window.location.hostname !== 'localhost' && window.location.hostname !== '127.0.0.1') {
+                log('ERROR: Web Bluetooth requires HTTPS (except localhost)', 'error');
+                log('Current URL: ' + window.location.href, 'error');
+                log('Solution: Use HTTPS or localhost', 'error');
+            } else {
+                log('Web Bluetooth API not available. Use Chrome/Edge on Android or Desktop.', 'error');
+            }
+        }
+    </script>
+</body>
+</html>
