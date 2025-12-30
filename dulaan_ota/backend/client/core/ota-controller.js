@@ -59,6 +59,13 @@ class OTAController {
         // MTU configuration
         this.MTU_SIZE = 244; // Recommended MTU for OTA
         this.DATA_CHUNK_SIZE = 240; // MTU - 3 bytes for header
+        
+        // Adaptive delay parameters
+        this.currentDelay = 50;  // Start with 50ms
+        this.minDelay = 30;      // Minimum delay (fast devices)
+        this.maxDelay = 150;     // Maximum delay (slow devices)
+        this.consecutiveSuccesses = 0;
+        this.maxRetries = 3;     // Retry failed writes
     }
 
     /**
@@ -504,12 +511,51 @@ class OTAController {
                     3
                 );
 
-                await BleClient.writeWithoutResponse(
-                    this.deviceAddress,
-                    this.SERVICE_UUID,
-                    this.OTA_CHAR_UUID,
-                    new DataView(packet.buffer)
-                );
+                // Try to send with retry logic
+                let sent = false;
+                for (let attempt = 0; attempt < this.maxRetries; attempt++) {
+                    try {
+                        await BleClient.writeWithoutResponse(
+                            this.deviceAddress,
+                            this.SERVICE_UUID,
+                            this.OTA_CHAR_UUID,
+                            new DataView(packet.buffer)
+                        );
+                        
+                        sent = true;
+                        
+                        // Success - adapt delay (speed up gradually)
+                        this.consecutiveSuccesses++;
+                        if (this.consecutiveSuccesses >= 20) {
+                            // After 20 successes, reduce delay by 5ms
+                            this.currentDelay = Math.max(this.minDelay, this.currentDelay - 5);
+                            this.consecutiveSuccesses = 0;
+                            console.log(`OTA: Speeding up, delay now ${this.currentDelay}ms`);
+                        }
+                        
+                        break;  // Success, exit retry loop
+                        
+                    } catch (error) {
+                        console.warn(`OTA: Write attempt ${attempt + 1}/${this.maxRetries} failed`);
+                        
+                        if (attempt === this.maxRetries - 1) {
+                            // Last attempt failed, give up
+                            throw error;
+                        }
+                        
+                        // Slow down on failure
+                        this.consecutiveSuccesses = 0;
+                        this.currentDelay = Math.min(this.maxDelay, this.currentDelay + 20);
+                        console.warn(`OTA: Slowing down, delay now ${this.currentDelay}ms`);
+                        
+                        // Wait before retry (exponential backoff)
+                        await this.delay(100 * (attempt + 1));
+                    }
+                }
+                
+                if (!sent) {
+                    throw new Error('Failed to send packet after retries');
+                }
 
                 this.sentBytes += chunkSize;
                 this.currentSequence++;
@@ -518,10 +564,8 @@ class OTAController {
                 const progress = Math.floor((this.sentBytes / this.totalSize) * 100);
                 this.updateProgress(progress);
 
-                // Delay to prevent BLE queue overflow
-                // Capacitor BLE plugin queues writes even with writeWithoutResponse
-                // Need sufficient delay to allow queue to drain
-                await this.delay(50);
+                // Adaptive delay to prevent BLE queue overflow
+                await this.delay(this.currentDelay);
             }
 
             console.log('OTA: All data sent, sending FINISH command');
