@@ -421,8 +421,8 @@ class OTAController {
                 const sizeKB = (this.totalSize / 1024).toFixed(2);
                 console.log(getTimestamp() + ` OTA: Loaded firmware: ${file.name} (${sizeKB} KB)`);
                 
-                if (this.totalSize > 240 * 1024) {
-                    reject(new Error(`Firmware too large: ${sizeKB} KB (max 240 KB)`));
+                if (this.totalSize > 500 * 1024) {
+                    reject(new Error(`Firmware too large: ${sizeKB} KB (max 500 KB)`));
                     return;
                 }
                 
