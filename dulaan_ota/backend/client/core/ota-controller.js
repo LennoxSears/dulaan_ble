@@ -493,13 +493,6 @@ class OTAController {
         }
 
         this.updateStatus('Sending firmware...');
-        
-        // TESTING: Don't send DATA packets, just wait to see if device disconnects
-        console.log('OTA: TESTING MODE - Not sending DATA packets, waiting 30 seconds...');
-        await this.delay(30000);
-        console.log('OTA: TESTING MODE - 30 seconds elapsed, device still connected?');
-        this.updateStatus('Test complete - no data sent');
-        return;
 
         try {
             while (this.sentBytes < this.totalSize) {
@@ -518,7 +511,12 @@ class OTAController {
                     3
                 );
 
-                // Simple write with retry - no adaptive delay for testing
+                // Add delay between packets to prevent device buffer overflow
+                if (this.sentBytes > 0) {
+                    await this.delay(50); // 50ms delay between packets
+                }
+
+                // Simple write with retry
                 let sent = false;
                 for (let attempt = 0; attempt < this.maxRetries; attempt++) {
                     try {
