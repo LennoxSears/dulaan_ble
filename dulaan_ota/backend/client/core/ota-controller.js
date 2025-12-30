@@ -495,6 +495,43 @@ class OTAController {
         this.updateStatus('Sending firmware...');
 
         try {
+            // TESTING: Send only ONE DATA packet, then wait
+            const chunkSize = Math.min(this.DATA_CHUNK_SIZE, this.totalSize);
+            
+            // DATA command: [0x02][seq_low][seq_high][data...]
+            const packet = new Uint8Array(3 + chunkSize);
+            packet[0] = 0x02; // DATA command
+            packet[1] = this.currentSequence & 0xFF;
+            packet[2] = (this.currentSequence >> 8) & 0xFF;
+            
+            // Copy firmware data
+            packet.set(
+                this.firmwareData.subarray(0, chunkSize),
+                3
+            );
+
+            console.log('OTA: TESTING - Sending ONE DATA packet (243 bytes)...');
+            
+            try {
+                await BleClient.writeWithoutResponse(
+                    this.deviceAddress,
+                    this.SERVICE_UUID,
+                    this.OTA_CHAR_UUID,
+                    new DataView(packet.buffer)
+                );
+                console.log('OTA: TESTING - First packet sent successfully');
+            } catch (error) {
+                console.error('OTA: TESTING - Failed to send first packet:', error);
+                throw error;
+            }
+            
+            // Wait 30 seconds to see if device stays connected
+            console.log('OTA: TESTING - Waiting 30 seconds after first packet...');
+            await this.delay(30000);
+            console.log('OTA: TESTING - 30 seconds elapsed, device still connected?');
+            this.updateStatus('Test complete - sent 1 packet');
+            return;
+
             while (this.sentBytes < this.totalSize) {
                 const remaining = this.totalSize - this.sentBytes;
                 const chunkSize = Math.min(this.DATA_CHUNK_SIZE, remaining);
