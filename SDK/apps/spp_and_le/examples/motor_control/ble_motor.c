@@ -59,9 +59,9 @@ static gatt_ctrl_t motor_gatt_control_block = {
 /* Connection update parameters */
 static uint8_t motor_connection_update_enable = 1;
 static const struct conn_update_param_t motor_connection_param_table[] = {
-    {16, 24, 10, 600},  /* Interval 20-30ms, latency 10, timeout 6s */
-    {12, 28, 10, 600},
-    {8,  20, 10, 600},
+    {16, 24, 0, 3200},  /* Interval 20-30ms, latency 0, timeout 32s - increased for OTA */
+    {12, 28, 0, 3200},  /* Latency 0 to ensure fast response during OTA */
+    {8,  20, 0, 3200},  /* Timeout 32s to allow flash erase during OTA init */
 };
 
 /* Connection update counter */
