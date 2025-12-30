@@ -354,19 +354,11 @@ class OTAController {
                 // Device will disconnect and reboot
                 break;
 
-            case 0x04: // ACK (flow control)
+            case 0x04: // ACK (flow control - not supported by SDK, kept for future)
                 // ACK format: [0x04][seq_low][seq_high]
                 if (data.length >= 3) {
                     const ackSeq = data[1] | (data[2] << 8);
-                    console.log(`OTA: ACK received for sequence ${ackSeq}`);
-                    this.ackSequence = ackSeq;
-                    this.ackReceived = true;
-                    
-                    // Resolve waiting promise
-                    if (this.ackResolve) {
-                        this.ackResolve(ackSeq);
-                        this.ackResolve = null;
-                    }
+                    console.log(`OTA: ACK received for sequence ${ackSeq} (unexpected - callback not supported)`);
                 }
                 break;
 
@@ -548,7 +540,7 @@ class OTAController {
 
         try {
             const totalPackets = Math.ceil(this.totalSize / this.DATA_CHUNK_SIZE);
-            console.log(`OTA: Sending ${totalPackets} packets with flow control...`);
+            console.log(`OTA: Sending ${totalPackets} packets with 100ms delay (callback not supported)...`);
             
             while (this.sentBytes < this.totalSize) {
                 const remaining = this.totalSize - this.sentBytes;
@@ -566,7 +558,7 @@ class OTAController {
                     3
                 );
 
-                // Send packet with flow control (wait for ACK)
+                // Send packet with fixed delay (fallback - callback not supported)
                 let sent = false;
                 for (let attempt = 0; attempt < this.maxRetries; attempt++) {
                     try {
@@ -578,10 +570,8 @@ class OTAController {
                             new DataView(packet.buffer)
                         );
                         
-                        // Wait for ACK from device (flow control)
-                        console.log(`OTA: Packet ${this.currentSequence} sent, waiting for ACK...`);
-                        await this.waitForAck(this.currentSequence, 5000);
-                        console.log(`OTA: ACK received for packet ${this.currentSequence}`);
+                        // Fixed delay to prevent buffer overflow (callback not supported by SDK)
+                        await this.delay(100);  // 100ms delay between packets
                         
                         sent = true;
                         break;  // Success, exit retry loop
