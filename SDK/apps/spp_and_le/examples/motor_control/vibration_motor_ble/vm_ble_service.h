@@ -39,6 +39,7 @@
 #define VM_OTA_STATUS_READY    0x01  /* Ready for OTA */
 #define VM_OTA_STATUS_PROGRESS 0x02  /* Progress update */
 #define VM_OTA_STATUS_SUCCESS  0x03  /* OTA success */
+#define VM_OTA_STATUS_ACK      0x04  /* ACK for DATA packet (flow control) */
 #define VM_OTA_STATUS_ERROR    0xFF  /* OTA error */
 
 #define VM_OTA_START_ADDR   0x0      /* VM flash start address */

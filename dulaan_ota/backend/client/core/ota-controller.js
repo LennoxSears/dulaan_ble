@@ -48,6 +48,11 @@ class OTAController {
         this.sentBytes = 0;
         this.currentSequence = 0;
         
+        // Flow control
+        this.ackReceived = false;
+        this.ackSequence = -1;
+        this.ackResolve = null;
+        
         // Callbacks
         this.onProgress = null;
         this.onStatusChange = null;
@@ -349,6 +354,22 @@ class OTAController {
                 // Device will disconnect and reboot
                 break;
 
+            case 0x04: // ACK (flow control)
+                // ACK format: [0x04][seq_low][seq_high]
+                if (data.length >= 3) {
+                    const ackSeq = data[1] | (data[2] << 8);
+                    console.log(`OTA: ACK received for sequence ${ackSeq}`);
+                    this.ackSequence = ackSeq;
+                    this.ackReceived = true;
+                    
+                    // Resolve waiting promise
+                    if (this.ackResolve) {
+                        this.ackResolve(ackSeq);
+                        this.ackResolve = null;
+                    }
+                }
+                break;
+
             case 0xFF: // ERROR
                 const errorCode = statusData;
                 const errorMsg = this.getErrorMessage(errorCode);
@@ -484,6 +505,37 @@ class OTAController {
     }
 
     /**
+     * Wait for ACK from device (flow control)
+     */
+    async waitForAck(expectedSequence, timeoutMs = 5000) {
+        return new Promise((resolve, reject) => {
+            // Check if ACK already received
+            if (this.ackReceived && this.ackSequence === expectedSequence) {
+                this.ackReceived = false;
+                resolve(expectedSequence);
+                return;
+            }
+
+            // Set up timeout
+            const timeout = setTimeout(() => {
+                this.ackResolve = null;
+                reject(new Error(`Timeout waiting for ACK (seq=${expectedSequence})`));
+            }, timeoutMs);
+
+            // Set up resolve callback
+            this.ackResolve = (ackSeq) => {
+                clearTimeout(timeout);
+                if (ackSeq === expectedSequence) {
+                    this.ackReceived = false;
+                    resolve(ackSeq);
+                } else {
+                    reject(new Error(`ACK sequence mismatch: expected ${expectedSequence}, got ${ackSeq}`));
+                }
+            };
+        });
+    }
+
+    /**
      * Send data packets
      */
     async sendDataPackets() {
@@ -495,57 +547,9 @@ class OTAController {
         this.updateStatus('Sending firmware...');
 
         try {
-            // TESTING: Send 5 DATA packets with 100ms delay between them
-            const TEST_PACKET_COUNT = 5;
-            const DELAY_BETWEEN_PACKETS = 100; // ms
+            const totalPackets = Math.ceil(this.totalSize / this.DATA_CHUNK_SIZE);
+            console.log(`OTA: Sending ${totalPackets} packets with flow control...`);
             
-            console.log(`OTA: TESTING - Sending ${TEST_PACKET_COUNT} DATA packets with ${DELAY_BETWEEN_PACKETS}ms delay...`);
-            
-            for (let i = 0; i < TEST_PACKET_COUNT; i++) {
-                const offset = i * this.DATA_CHUNK_SIZE;
-                const remaining = this.totalSize - offset;
-                const chunkSize = Math.min(this.DATA_CHUNK_SIZE, remaining);
-                
-                // DATA command: [0x02][seq_low][seq_high][data...]
-                const packet = new Uint8Array(3 + chunkSize);
-                packet[0] = 0x02; // DATA command
-                packet[1] = i & 0xFF;
-                packet[2] = (i >> 8) & 0xFF;
-                
-                // Copy firmware data
-                packet.set(
-                    this.firmwareData.subarray(offset, offset + chunkSize),
-                    3
-                );
-
-                console.log(`OTA: TESTING - Sending packet ${i + 1}/${TEST_PACKET_COUNT}...`);
-                
-                try {
-                    await BleClient.writeWithoutResponse(
-                        this.deviceAddress,
-                        this.SERVICE_UUID,
-                        this.OTA_CHAR_UUID,
-                        new DataView(packet.buffer)
-                    );
-                    console.log(`OTA: TESTING - Packet ${i + 1} sent successfully`);
-                } catch (error) {
-                    console.error(`OTA: TESTING - Failed to send packet ${i + 1}:`, error);
-                    throw error;
-                }
-                
-                // Delay between packets (except after last packet)
-                if (i < TEST_PACKET_COUNT - 1) {
-                    await this.delay(DELAY_BETWEEN_PACKETS);
-                }
-            }
-            
-            // Wait 30 seconds to see if device stays connected
-            console.log('OTA: TESTING - All packets sent, waiting 30 seconds...');
-            await this.delay(30000);
-            console.log('OTA: TESTING - 30 seconds elapsed, device still connected?');
-            this.updateStatus(`Test complete - sent ${TEST_PACKET_COUNT} packets`);
-            return;
-
             while (this.sentBytes < this.totalSize) {
                 const remaining = this.totalSize - this.sentBytes;
                 const chunkSize = Math.min(this.DATA_CHUNK_SIZE, remaining);
@@ -562,15 +566,11 @@ class OTAController {
                     3
                 );
 
-                // Add delay between packets to prevent device buffer overflow
-                if (this.sentBytes > 0) {
-                    await this.delay(50); // 50ms delay between packets
-                }
-
-                // Simple write with retry
+                // Send packet with flow control (wait for ACK)
                 let sent = false;
                 for (let attempt = 0; attempt < this.maxRetries; attempt++) {
                     try {
+                        // Send packet
                         await BleClient.writeWithoutResponse(
                             this.deviceAddress,
                             this.SERVICE_UUID,
@@ -578,18 +578,23 @@ class OTAController {
                             new DataView(packet.buffer)
                         );
                         
+                        // Wait for ACK from device (flow control)
+                        console.log(`OTA: Packet ${this.currentSequence} sent, waiting for ACK...`);
+                        await this.waitForAck(this.currentSequence, 5000);
+                        console.log(`OTA: ACK received for packet ${this.currentSequence}`);
+                        
                         sent = true;
                         break;  // Success, exit retry loop
                         
                     } catch (error) {
-                        console.warn(`OTA: Write attempt ${attempt + 1}/${this.maxRetries} failed:`, error.message);
+                        console.warn(`OTA: Attempt ${attempt + 1}/${this.maxRetries} failed:`, error.message);
                         
                         if (attempt === this.maxRetries - 1) {
                             // Last attempt failed, give up
                             throw error;
                         }
                         
-                        // Wait before retry (exponential backoff)
+                        // Wait before retry
                         console.warn(`OTA: Retrying in ${100 * (attempt + 1)}ms...`);
                         await this.delay(100 * (attempt + 1));
                     }

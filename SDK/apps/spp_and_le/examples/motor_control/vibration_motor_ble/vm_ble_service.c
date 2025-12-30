@@ -31,9 +31,11 @@ static ota_state_t ota_state = OTA_STATE_IDLE;
 static uint32_t ota_total_size = 0;
 static uint32_t ota_received_size = 0;
 static uint32_t ota_expected_crc = 0;
+static uint16_t ota_current_sequence = 0;  /* Track current packet sequence for ACK */
 
 /* Forward declarations */
 static void ota_send_notification(uint16_t conn_handle, uint8_t status, uint8_t value);
+static int ota_write_complete_callback(void *priv);
 
 int vm_ble_handle_motor_write(uint16_t conn_handle, const uint8_t *data, uint16_t len)
 {
@@ -314,6 +316,27 @@ static void ota_send_notification(uint16_t conn_handle, uint8_t status, uint8_t 
                            ATT_OP_AUTO_READ_CCC);
 }
 
+/* Callback when flash write completes - sends ACK to app */
+static int ota_write_complete_callback(void *priv)
+{
+    (void)priv;
+    
+    /* Send ACK notification with sequence number */
+    uint8_t notify_data[3];
+    notify_data[0] = VM_OTA_STATUS_ACK;
+    notify_data[1] = ota_current_sequence & 0xFF;
+    notify_data[2] = (ota_current_sequence >> 8) & 0xFF;
+    
+    ble_comm_att_send_data(vm_connection_handle, 
+                           ATT_CHARACTERISTIC_VM_OTA_VALUE_HANDLE,
+                           notify_data, 3,
+                           ATT_OP_AUTO_READ_CCC);
+    
+    log_info("OTA: ACK sent for seq=%d\n", ota_current_sequence);
+    
+    return 0;  /* Success */
+}
+
 /* Note: CRC verification is handled by dual_bank API internally */
 
 /*
@@ -390,8 +413,11 @@ int vm_ble_handle_ota_write(uint16_t conn_handle, const uint8_t *data, uint16_t 
             uint16_t data_len = len - 3;
             uint8_t *firmware_data = (uint8_t *)&data[3];
             
-            /* Write to flash using dual-bank API */
-            uint32_t ret = dual_bank_update_write(firmware_data, data_len, NULL);
+            /* Store sequence number for ACK callback */
+            ota_current_sequence = seq;
+            
+            /* Write to flash using dual-bank API with callback for flow control */
+            uint32_t ret = dual_bank_update_write(firmware_data, data_len, ota_write_complete_callback);
             if (ret != 0) {
                 log_error("OTA: Flash write failed: %d\n", ret);
                 ota_send_notification(conn_handle, VM_OTA_STATUS_ERROR, 0x05);
@@ -402,14 +428,9 @@ int vm_ble_handle_ota_write(uint16_t conn_handle, const uint8_t *data, uint16_t 
             
             ota_received_size += data_len;
             
-            /* Send progress notification every 10% */
-            uint8_t progress = (ota_received_size * 100) / ota_total_size;
-            static uint8_t last_progress = 0;
-            if (progress >= last_progress + 10) {
-                log_info("OTA: Progress %d%%\n", progress);
-                ota_send_notification(conn_handle, VM_OTA_STATUS_PROGRESS, progress);
-                last_progress = progress;
-            }
+            /* Note: ACK will be sent by ota_write_complete_callback when write finishes */
+            /* Progress notifications removed - app can calculate from ACK sequence numbers */
+            
             break;
         }
         
