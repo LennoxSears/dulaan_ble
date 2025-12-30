@@ -511,7 +511,7 @@ class OTAController {
                     3
                 );
 
-                // Try to send with retry logic
+                // Simple write with retry - no adaptive delay for testing
                 let sent = false;
                 for (let attempt = 0; attempt < this.maxRetries; attempt++) {
                     try {
@@ -523,32 +523,18 @@ class OTAController {
                         );
                         
                         sent = true;
-                        
-                        // Success - adapt delay (speed up gradually)
-                        this.consecutiveSuccesses++;
-                        if (this.consecutiveSuccesses >= 20) {
-                            // After 20 successes, reduce delay by 5ms
-                            this.currentDelay = Math.max(this.minDelay, this.currentDelay - 5);
-                            this.consecutiveSuccesses = 0;
-                            console.log(`OTA: Speeding up, delay now ${this.currentDelay}ms`);
-                        }
-                        
                         break;  // Success, exit retry loop
                         
                     } catch (error) {
-                        console.warn(`OTA: Write attempt ${attempt + 1}/${this.maxRetries} failed`);
+                        console.warn(`OTA: Write attempt ${attempt + 1}/${this.maxRetries} failed:`, error.message);
                         
                         if (attempt === this.maxRetries - 1) {
                             // Last attempt failed, give up
                             throw error;
                         }
                         
-                        // Slow down on failure
-                        this.consecutiveSuccesses = 0;
-                        this.currentDelay = Math.min(this.maxDelay, this.currentDelay + 20);
-                        console.warn(`OTA: Slowing down, delay now ${this.currentDelay}ms`);
-                        
                         // Wait before retry (exponential backoff)
+                        console.warn(`OTA: Retrying in ${100 * (attempt + 1)}ms...`);
                         await this.delay(100 * (attempt + 1));
                     }
                 }
@@ -564,15 +550,9 @@ class OTAController {
                 const progress = Math.floor((this.sentBytes / this.totalSize) * 100);
                 this.updateProgress(progress);
 
-                // Extra pause every 50 packets to let device catch up with flash writes
-                if (this.currentSequence % 50 === 0) {
-                    const batchNum = Math.floor(this.currentSequence / 50);
-                    console.log(`OTA: Batch ${batchNum} complete (${(this.sentBytes / 1024).toFixed(1)}KB sent), pausing for device...`);
-                    await this.delay(500);  // 500ms pause to let device write to flash
-                }
-
-                // Adaptive delay to prevent BLE queue overflow
-                await this.delay(this.currentDelay);
+                // Fixed safe delay for testing - no adaptive logic
+                // Try 100ms first, can adjust based on results
+                await this.delay(100);
             }
 
             console.log('OTA: All data sent, sending FINISH command');
