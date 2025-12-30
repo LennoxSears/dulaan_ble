@@ -1545,7 +1545,7 @@ class MotorController {
                 return true;
             }
             
-            await BleClient.write(
+            await BleClient.writeWithoutResponse(
                 this.deviceAddress,
                 this.SERVICE_UUID,
                 this.CHARACTERISTIC_UUID,

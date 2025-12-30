@@ -462,7 +462,7 @@ class OTAController {
         console.log('OTA: Sending START command, size:', this.totalSize);
 
         try {
-            await BleClient.write(
+            await BleClient.writeWithoutResponse(
                 this.deviceAddress,
                 this.SERVICE_UUID,
                 this.OTA_CHAR_UUID,
@@ -504,7 +504,7 @@ class OTAController {
                     3
                 );
 
-                await BleClient.write(
+                await BleClient.writeWithoutResponse(
                     this.deviceAddress,
                     this.SERVICE_UUID,
                     this.OTA_CHAR_UUID,
@@ -553,7 +553,7 @@ class OTAController {
         data[4] = (crc >> 24) & 0xFF;
 
         try {
-            await BleClient.write(
+            await BleClient.writeWithoutResponse(
                 this.deviceAddress,
                 this.SERVICE_UUID,
                 this.OTA_CHAR_UUID,
