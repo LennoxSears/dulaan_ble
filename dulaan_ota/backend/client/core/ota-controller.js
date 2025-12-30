@@ -24,6 +24,16 @@ function hexStringToDataView(hexString) {
     return new DataView(bytes.buffer);
 }
 
+// Helper function to get timestamp for logging
+function getTimestamp() {
+    const now = new Date();
+    const hours = String(now.getHours()).padStart(2, '0');
+    const minutes = String(now.getMinutes()).padStart(2, '0');
+    const seconds = String(now.getSeconds()).padStart(2, '0');
+    const ms = String(now.getMilliseconds()).padStart(3, '0');
+    return `[${hours}:${minutes}:${seconds}.${ms}]`;
+}
+
 class OTAController {
     constructor() {
         this.deviceAddress = null;
@@ -84,10 +94,10 @@ class OTAController {
             }
             
             await BleClient.initialize();
-            console.log('OTA: BLE initialized');
+            console.log(getTimestamp() + ' OTA: BLE initialized');
             return true;
         } catch (error) {
-            console.error('OTA: Failed to initialize BLE:', error);
+            console.error(getTimestamp() + ' OTA: Failed to initialize BLE:', error);
             throw error;
         }
     }
@@ -97,34 +107,34 @@ class OTAController {
      */
     async scan(timeout = this.SCAN_TIMEOUT) {
         if (this.isScanning) {
-            console.warn('OTA: Scan already in progress, stopping previous scan...');
+            console.warn(getTimestamp() + ' OTA: Scan already in progress, stopping previous scan...');
             await this.stopScan();
         }
 
         try {
             const BleClient = getBleClient();
             if (!BleClient) {
-                console.warn('OTA: BleClient not available - cannot scan');
+                console.warn(getTimestamp() + ' OTA: BleClient not available - cannot scan');
                 return false;
             }
 
             this.isScanning = true;
             this.scanResults = [];
             
-            console.log(`OTA: Starting BLE scan for "${this.TARGET_DEVICE_NAME}" (timeout: ${timeout}ms)...`);
+            console.log(getTimestamp() + ` OTA: Starting BLE scan for "${this.TARGET_DEVICE_NAME}" (timeout: ${timeout}ms)...`);
             this.updateStatus('Scanning for devices...');
             
             await BleClient.requestLEScan({}, async (result) => {
-                console.log('OTA: Scan result:', JSON.stringify(result));
+                console.log(getTimestamp() + ' OTA: Scan result:', JSON.stringify(result));
                 
                 // Filter for target device name (matches motor-controller)
                 if (result.device.name === this.TARGET_DEVICE_NAME) {
-                    console.log('OTA: ✅ Found target device:', result.device.deviceId);
+                    console.log(getTimestamp() + ' OTA: ✅ Found target device:', result.device.deviceId);
                     this.deviceAddress = result.device.deviceId;
                     this.scanResults.push(result.device);
                     
                     // Stop scan immediately when target device is found (matches motor-controller)
-                    console.log('OTA: Target device found, stopping scan...');
+                    console.log(getTimestamp() + ' OTA: Target device found, stopping scan...');
                     await this.stopScan();
                     
                     // Trigger callback if set
@@ -137,20 +147,20 @@ class OTAController {
             // Stop scan after timeout
             setTimeout(async () => {
                 if (this.isScanning) {
-                    console.log('OTA: Scan timeout reached, stopping scan...');
+                    console.log(getTimestamp() + ' OTA: Scan timeout reached, stopping scan...');
                     await this.stopScan();
                     
                     if (this.scanResults.length === 0) {
-                        console.warn(`OTA: ❌ No devices found with name "${this.TARGET_DEVICE_NAME}"`);
+                        console.warn(getTimestamp() + ` OTA: ❌ No devices found with name "${this.TARGET_DEVICE_NAME}"`);
                     } else {
-                        console.log(`OTA: Found ${this.scanResults.length} device(s)`);
+                        console.log(getTimestamp() + ` OTA: Found ${this.scanResults.length} device(s)`);
                     }
                 }
             }, timeout);
 
             return true;
         } catch (error) {
-            console.error('OTA: Failed to start scan:', error);
+            console.error(getTimestamp() + ' OTA: Failed to start scan:', error);
             await this.resetScanState();
             return false;
         }
@@ -170,9 +180,9 @@ class OTAController {
                 await BleClient.stopLEScan();
             }
             this.isScanning = false;
-            console.log('OTA: BLE scan stopped');
+            console.log(getTimestamp() + ' OTA: BLE scan stopped');
         } catch (error) {
-            console.error('OTA: Failed to stop scan:', error);
+            console.error(getTimestamp() + ' OTA: Failed to stop scan:', error);
             await this.resetScanState();
         }
     }
@@ -191,10 +201,10 @@ class OTAController {
                 }
             }
         } catch (error) {
-            console.error('OTA: Error during scan state reset:', error);
+            console.error(getTimestamp() + ' OTA: Error during scan state reset:', error);
         } finally {
             this.isScanning = false;
-            console.log('OTA: Scan state reset');
+            console.log(getTimestamp() + ' OTA: Scan state reset');
         }
     }
 
@@ -203,7 +213,7 @@ class OTAController {
      */
     async scanAndConnect(timeout = this.SCAN_TIMEOUT) {
         try {
-            console.log('OTA: Scanning for device...');
+            console.log(getTimestamp() + ' OTA: Scanning for device...');
             
             // Use a promise to wait for scan completion properly
             const scanPromise = new Promise((resolve, reject) => {
@@ -240,15 +250,15 @@ class OTAController {
             const deviceFound = await scanPromise;
             
             if (deviceFound && this.deviceAddress) {
-                console.log('OTA: Device found, attempting to connect...');
+                console.log(getTimestamp() + ' OTA: Device found, attempting to connect...');
                 return await this.connect();
             } else {
-                console.warn('OTA: ❌ No device found during scan');
-                console.warn(`OTA: Make sure device "${this.TARGET_DEVICE_NAME}" is powered on and in range`);
+                console.warn(getTimestamp() + ' OTA: ❌ No device found during scan');
+                console.warn(getTimestamp() + ` OTA: Make sure device "${this.TARGET_DEVICE_NAME}" is powered on and in range`);
                 return false;
             }
         } catch (error) {
-            console.error('OTA: Scan and connect failed:', error);
+            console.error(getTimestamp() + ' OTA: Scan and connect failed:', error);
             await this.resetScanState();
             return false;
         }
@@ -269,7 +279,7 @@ class OTAController {
 
             const BleClient = getBleClient();
             if (!BleClient) {
-                console.warn('OTA: BleClient not available - using mock mode');
+                console.warn(getTimestamp() + ' OTA: BleClient not available - using mock mode');
                 this.isConnected = true;
                 return true;
             }
@@ -284,7 +294,7 @@ class OTAController {
             await BleClient.connect(this.deviceAddress, disconnectCallback);
             this.isConnected = true;
             
-            console.log('OTA: Connected to device:', this.deviceAddress);
+            console.log(getTimestamp() + ' OTA: Connected to device:', this.deviceAddress);
             this.updateStatus('Connected');
             
             // Enable notifications
@@ -292,7 +302,7 @@ class OTAController {
             
             return true;
         } catch (error) {
-            console.error('OTA: Failed to connect to device:', error);
+            console.error(getTimestamp() + ' OTA: Failed to connect to device:', error);
             this.isConnected = false;
             throw error;
         }
@@ -314,9 +324,9 @@ class OTAController {
                 this.OTA_CHAR_UUID,
                 (value) => this.handleNotification(value)
             );
-            console.log('OTA: Notifications enabled');
+            console.log(getTimestamp() + ' OTA: Notifications enabled');
         } catch (error) {
-            console.error('OTA: Failed to enable notifications:', error);
+            console.error(getTimestamp() + ' OTA: Failed to enable notifications:', error);
             throw error;
         }
     }
@@ -329,23 +339,23 @@ class OTAController {
         const status = data[0];
         const statusData = data[1];
 
-        console.log('OTA: Notification received:', { status, statusData });
+        console.log(getTimestamp() + ' OTA: Notification received:', { status, statusData });
 
         switch (status) {
             case 0x01: // READY
-                console.log('OTA: Device ready to receive firmware');
+                console.log(getTimestamp() + ' OTA: Device ready to receive firmware');
                 this.updateStatus('Device ready');
                 this.sendDataPackets();
                 break;
 
             case 0x02: // PROGRESS
                 const progress = statusData;
-                console.log(`OTA: Progress ${progress}%`);
+                console.log(getTimestamp() + ` OTA: Progress ${progress}%`);
                 this.updateProgress(progress);
                 break;
 
             case 0x03: // SUCCESS
-                console.log('OTA: Update successful! Device will reboot...');
+                console.log(getTimestamp() + ' OTA: Update successful! Device will reboot...');
                 this.updateStatus('Update complete');
                 this.isUpdating = false;
                 if (this.onComplete) {
@@ -358,14 +368,14 @@ class OTAController {
                 // ACK format: [0x04][seq_low][seq_high]
                 if (data.length >= 3) {
                     const ackSeq = data[1] | (data[2] << 8);
-                    console.log(`OTA: ACK received for sequence ${ackSeq} (unexpected - callback not supported)`);
+                    console.log(getTimestamp() + ` OTA: ACK received for sequence ${ackSeq} (unexpected - callback not supported)`);
                 }
                 break;
 
             case 0xFF: // ERROR
                 const errorCode = statusData;
                 const errorMsg = this.getErrorMessage(errorCode);
-                console.error(`OTA: Error 0x${errorCode.toString(16).padStart(2, '0')}: ${errorMsg}`);
+                console.error(getTimestamp() + ` OTA: Error 0x${errorCode.toString(16).padStart(2, '0')}: ${errorMsg}`);
                 this.updateStatus(`Error: ${errorMsg}`);
                 this.isUpdating = false;
                 if (this.onError) {
@@ -374,7 +384,7 @@ class OTAController {
                 break;
 
             default:
-                console.warn('OTA: Unknown notification status:', status);
+                console.warn(getTimestamp() + ' OTA: Unknown notification status:', status);
         }
     }
 
@@ -409,7 +419,7 @@ class OTAController {
                 this.totalSize = this.firmwareData.length;
                 
                 const sizeKB = (this.totalSize / 1024).toFixed(2);
-                console.log(`OTA: Loaded firmware: ${file.name} (${sizeKB} KB)`);
+                console.log(getTimestamp() + ` OTA: Loaded firmware: ${file.name} (${sizeKB} KB)`);
                 
                 if (this.totalSize > 240 * 1024) {
                     reject(new Error(`Firmware too large: ${sizeKB} KB (max 240 KB)`));
@@ -452,7 +462,7 @@ class OTAController {
         this.currentSequence = 0;
 
         this.updateStatus('Starting update...');
-        console.log('OTA: Starting update, size:', this.totalSize);
+        console.log(getTimestamp() + ' OTA: Starting update, size:', this.totalSize);
 
         try {
             await this.sendStartCommand();
@@ -479,7 +489,7 @@ class OTAController {
         data[3] = (this.totalSize >> 16) & 0xFF;
         data[4] = (this.totalSize >> 24) & 0xFF;
 
-        console.log('OTA: Sending START command, size:', this.totalSize);
+        console.log(getTimestamp() + ' OTA: Sending START command, size:', this.totalSize);
 
         try {
             await BleClient.writeWithoutResponse(
@@ -491,7 +501,7 @@ class OTAController {
             
             this.updateStatus('Waiting for device...');
         } catch (error) {
-            console.error('OTA: Failed to send START command:', error);
+            console.error(getTimestamp() + ' OTA: Failed to send START command:', error);
             throw error;
         }
     }
@@ -541,7 +551,7 @@ class OTAController {
         try {
             const totalPackets = Math.ceil(this.totalSize / this.DATA_CHUNK_SIZE);
             const PACKET_DELAY = 2000;  // 2 second delay for testing (extremely conservative)
-            console.log(`OTA: Sending ${totalPackets} packets with ${PACKET_DELAY}ms delay (testing)...`);
+            console.log(getTimestamp() + ` OTA: Sending ${totalPackets} packets with ${PACKET_DELAY}ms delay (testing)...`);
             
             let packetsSent = 0;
             
@@ -566,17 +576,22 @@ class OTAController {
                 for (let attempt = 0; attempt < this.maxRetries; attempt++) {
                     try {
                         // Send packet
+                        console.log(getTimestamp() + ` OTA: Sending packet ${this.currentSequence} (${this.sentBytes}/${this.totalSize} bytes)...`);
                         await BleClient.writeWithoutResponse(
                             this.deviceAddress,
                             this.SERVICE_UUID,
                             this.OTA_CHAR_UUID,
                             new DataView(packet.buffer)
                         );
+                        console.log(getTimestamp() + ` OTA: Packet ${this.currentSequence} sent successfully`);
                         
                         // Fixed delay to prevent buffer overflow (callback not supported by SDK)
                         // Skip delay for first packet to avoid timeout
                         if (packetsSent > 0) {
+                            console.log(getTimestamp() + ` OTA: Waiting ${PACKET_DELAY}ms before next packet...`);
                             await this.delay(PACKET_DELAY);  // Conservative delay for testing
+                        } else {
+                            console.log(getTimestamp() + ' OTA: First packet sent, no delay');
                         }
                         packetsSent++;
                         
@@ -584,7 +599,7 @@ class OTAController {
                         break;  // Success, exit retry loop
                         
                     } catch (error) {
-                        console.warn(`OTA: Attempt ${attempt + 1}/${this.maxRetries} failed:`, error.message);
+                        console.warn(getTimestamp() + ` OTA: Attempt ${attempt + 1}/${this.maxRetries} failed:`, error.message);
                         
                         if (attempt === this.maxRetries - 1) {
                             // Last attempt failed, give up
@@ -592,7 +607,7 @@ class OTAController {
                         }
                         
                         // Wait before retry
-                        console.warn(`OTA: Retrying in ${100 * (attempt + 1)}ms...`);
+                        console.warn(getTimestamp() + ` OTA: Retrying in ${100 * (attempt + 1)}ms...`);
                         await this.delay(100 * (attempt + 1));
                     }
                 }
@@ -612,11 +627,11 @@ class OTAController {
                 await this.delay(150);
             }
 
-            console.log('OTA: All data sent, sending FINISH command');
+            console.log(getTimestamp() + ' OTA: All data sent, sending FINISH command');
             await this.sendFinishCommand();
 
         } catch (error) {
-            console.error('OTA: Failed to send data:', error);
+            console.error(getTimestamp() + ' OTA: Failed to send data:', error);
             this.isUpdating = false;
             throw error;
         }
@@ -632,7 +647,7 @@ class OTAController {
         }
 
         const crc = this.calculateCRC32(this.firmwareData);
-        console.log('OTA: Calculated CRC32:', crc.toString(16));
+        console.log(getTimestamp() + ' OTA: Calculated CRC32:', crc.toString(16));
 
         // FINISH command: [0x03][crc_low][crc_high][crc_mid][crc_top]
         const data = new Uint8Array(5);
@@ -652,7 +667,7 @@ class OTAController {
             
             this.updateStatus('Verifying...');
         } catch (error) {
-            console.error('OTA: Failed to send FINISH command:', error);
+            console.error(getTimestamp() + ' OTA: Failed to send FINISH command:', error);
             throw error;
         }
     }
@@ -688,9 +703,9 @@ class OTAController {
 
         try {
             await BleClient.disconnect(this.deviceAddress);
-            console.log('OTA: Disconnected');
+            console.log(getTimestamp() + ' OTA: Disconnected');
         } catch (error) {
-            console.warn('OTA: Disconnect error:', error);
+            console.warn(getTimestamp() + ' OTA: Disconnect error:', error);
         }
 
         this.handleDisconnect();
@@ -700,7 +715,7 @@ class OTAController {
      * Handle disconnect event (matches motor-controller pattern)
      */
     handleDisconnect() {
-        console.log('OTA: Device disconnected');
+        console.log(getTimestamp() + ' OTA: Device disconnected');
         this.isConnected = false;
         this.isUpdating = false;
         this.deviceAddress = null;
@@ -715,7 +730,7 @@ class OTAController {
      * Update status
      */
     updateStatus(status) {
-        console.log('OTA Status:', status);
+        console.log(getTimestamp() + ' OTA Status:', status);
         if (this.onStatusChange) {
             this.onStatusChange(status);
         }
