@@ -550,8 +550,8 @@ class OTAController {
                 const progress = Math.floor((this.sentBytes / this.totalSize) * 100);
                 this.updateProgress(progress);
 
-                // Fixed 50ms delay - proven to work from first 20 packets
-                await this.delay(50);
+                // Fixed 150ms delay - very safe for reliable transfer
+                await this.delay(150);
             }
 
             console.log('OTA: All data sent, sending FINISH command');
