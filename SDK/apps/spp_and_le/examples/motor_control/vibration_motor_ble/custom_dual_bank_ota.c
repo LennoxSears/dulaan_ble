@@ -478,10 +478,8 @@ void custom_dual_bank_ota_abort(void)
 {
     log_info("Custom OTA: Aborting OTA operation\n");
     
-    /* Free allocated memory if any */
-    if (g_ota_ctx.buffer) {
-        free(g_ota_ctx.buffer);
-    }
+    /* Note: buffer is a static array in g_ota_ctx, not dynamically allocated */
+    /* No need to free - it will be cleared by memset */
     
     /* Reset context to idle state */
     memset(&g_ota_ctx, 0, sizeof(g_ota_ctx));
