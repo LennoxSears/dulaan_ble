@@ -353,14 +353,15 @@ int vm_ble_handle_ota_write(uint16_t conn_handle, const uint8_t *data, uint16_t 
     
     switch (cmd) {
         case VM_OTA_CMD_START: {
-            /* Start OTA: [0x01][size_low][size_high][size_mid][size_top] */
-            if (len != 5) {
-                log_error("OTA: Invalid START packet length\n");
+            /* Start OTA: [0x01][size_low][size_high][size_mid][size_top][crc_low][crc_high] */
+            if (len != 7) {
+                log_error("OTA: Invalid START packet length (expected 7, got %d)\n", len);
                 ota_send_notification(conn_handle, VM_OTA_STATUS_ERROR, 0x01);
                 return 0x0D;
             }
             
             ota_total_size = data[1] | (data[2] << 8) | (data[3] << 16) | (data[4] << 24);
+            uint16_t fw_crc = data[5] | (data[6] << 8);
             
             if (ota_total_size == 0 || ota_total_size > VM_OTA_MAX_SIZE) {
                 log_error("OTA: Invalid firmware size: %d\n", ota_total_size);
@@ -368,7 +369,7 @@ int vm_ble_handle_ota_write(uint16_t conn_handle, const uint8_t *data, uint16_t 
                 return 0x0E;  /* ATT_ERROR_VALUE_NOT_ALLOWED */
             }
             
-            log_info("OTA: Start, size=%d bytes\n", ota_total_size);
+            log_info("OTA: Start, size=%d bytes, CRC=0x%04x\n", ota_total_size, fw_crc);
             
             /* Check buffer size before init */
             uint32_t max_buf = get_dual_bank_passive_update_max_buf();
@@ -380,9 +381,9 @@ int vm_ble_handle_ota_write(uint16_t conn_handle, const uint8_t *data, uint16_t 
                 return 0x0E;
             }
             
-            /* Initialize dual-bank update with smaller packet size for safety */
-            /* Use 128 bytes instead of 240 to reduce buffer pressure */
-            uint32_t ret = dual_bank_passive_update_init(0, ota_total_size, 128, NULL);
+            /* Initialize dual-bank update with CRC for app.bin verification */
+            /* SDK will verify CRC automatically during dual_bank_update_verify() */
+            uint32_t ret = dual_bank_passive_update_init(fw_crc, ota_total_size, 128, NULL);
             if (ret != 0) {
                 log_error("OTA: Init failed: %d\n", ret);
                 ota_send_notification(conn_handle, VM_OTA_STATUS_ERROR, 0x02);
@@ -400,6 +401,8 @@ int vm_ble_handle_ota_write(uint16_t conn_handle, const uint8_t *data, uint16_t 
             
             ota_received_size = 0;
             ota_state = OTA_STATE_RECEIVING;
+            
+            log_info("OTA: Dual-bank initialized, ready to receive app.bin\n");
             
             /* Send ready notification */
             ota_send_notification(conn_handle, VM_OTA_STATUS_READY, 0x00);

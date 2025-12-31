@@ -473,7 +473,27 @@ class OTAController {
     }
 
     /**
-     * Send START command
+     * Calculate CRC16 (matches SDK's CRC16 function)
+     * This is a standard CRC16 algorithm used by JieLi SDK
+     */
+    calculateCRC16(data) {
+        let crc = 0;
+        for (let i = 0; i < data.length; i++) {
+            crc ^= data[i] << 8;
+            for (let j = 0; j < 8; j++) {
+                if (crc & 0x8000) {
+                    crc = (crc << 1) ^ 0x1021;
+                } else {
+                    crc <<= 1;
+                }
+            }
+            crc &= 0xFFFF;
+        }
+        return crc;
+    }
+
+    /**
+     * Send START command with CRC for SDK dual-bank verification
      */
     async sendStartCommand() {
         const BleClient = getBleClient();
@@ -481,15 +501,22 @@ class OTAController {
             throw new Error('BleClient not available');
         }
 
-        // START command: [0x01][size_low][size_high][size_mid][size_top]
-        const data = new Uint8Array(5);
+        // Calculate CRC16 of firmware data (app.bin)
+        const firmwareCRC = this.calculateCRC16(this.firmwareData);
+        
+        console.log(getTimestamp() + ` OTA: Calculated firmware CRC16: 0x${firmwareCRC.toString(16).padStart(4, '0')}`);
+
+        // START command: [0x01][size_low][size_high][size_mid][size_top][crc_low][crc_high]
+        const data = new Uint8Array(7);
         data[0] = 0x01; // START command
         data[1] = this.totalSize & 0xFF;
         data[2] = (this.totalSize >> 8) & 0xFF;
         data[3] = (this.totalSize >> 16) & 0xFF;
         data[4] = (this.totalSize >> 24) & 0xFF;
+        data[5] = firmwareCRC & 0xFF;
+        data[6] = (firmwareCRC >> 8) & 0xFF;
 
-        console.log(getTimestamp() + ' OTA: Sending START command, size:', this.totalSize);
+        console.log(getTimestamp() + ` OTA: Sending START command, size: ${this.totalSize}, CRC: 0x${firmwareCRC.toString(16).padStart(4, '0')}`);
 
         try {
             await BleClient.writeWithoutResponse(
