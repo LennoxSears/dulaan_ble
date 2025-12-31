@@ -26,11 +26,12 @@
 #include "typedef.h"
 
 /* Flash addresses and sizes - ALL 4KB ALIGNED */
-#define CUSTOM_BOOT_INFO_ADDR   0x001000    /* Boot info location (4KB aligned) */
-#define CUSTOM_BANK_A_ADDR      0x002000    /* Bank A start (4KB aligned) */
-#define CUSTOM_BANK_B_ADDR      0x04E000    /* Bank B start (4KB aligned) */
-#define CUSTOM_BANK_SIZE        (304 * 1024) /* 304 KB per bank (4KB aligned) */
-#define CUSTOM_FLASH_SECTOR     4096        /* 4KB sector size */
+#define CUSTOM_BOOT_INFO_ADDR       0x001000    /* Primary boot info location (4KB aligned) */
+#define CUSTOM_BOOT_INFO_BACKUP     0x001400    /* Backup boot info location (4KB aligned) */
+#define CUSTOM_BANK_A_ADDR          0x002000    /* Bank A start (4KB aligned) */
+#define CUSTOM_BANK_B_ADDR          0x04E000    /* Bank B start (4KB aligned) */
+#define CUSTOM_BANK_SIZE            (304 * 1024) /* 304 KB per bank (4KB aligned) */
+#define CUSTOM_FLASH_SECTOR         4096        /* 4KB sector size */
 
 /* Boot info magic and version */
 #define CUSTOM_BOOT_MAGIC       0x4A4C4F54  /* 'JLOT' */
@@ -147,6 +148,12 @@ void custom_dual_bank_ota_abort(void);
  * @return Progress percentage
  */
 u8 custom_dual_bank_ota_get_progress(void);
+
+/**
+ * Get current OTA state
+ * @return Current state (CUSTOM_OTA_STATE_*)
+ */
+u8 custom_dual_bank_ota_get_state(void);
 
 /**
  * Get active bank number

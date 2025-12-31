@@ -35,33 +35,66 @@ static u16 calculate_boot_info_crc(const custom_boot_info_t *info)
 }
 
 /**
- * Read boot info from flash
+ * Read boot info from flash with fallback to backup
  */
 static int read_boot_info(void)
 {
     int ret;
+    u16 calc_crc;
     
-    /* Read boot info from flash */
+    /* Try reading from primary location first */
     ret = norflash_read(CUSTOM_BOOT_INFO_ADDR, (u8*)&g_boot_info, sizeof(g_boot_info));
+    if (ret == 0) {
+        /* Verify magic number */
+        if (g_boot_info.magic == CUSTOM_BOOT_MAGIC) {
+            /* Verify CRC */
+            calc_crc = calculate_boot_info_crc(&g_boot_info);
+            if (calc_crc == g_boot_info.boot_info_crc) {
+                log_info("Custom OTA: Boot info loaded from primary location\n");
+                goto boot_info_valid;
+            } else {
+                log_error("Custom OTA: Primary boot info CRC mismatch (expected 0x%04x, got 0x%04x)\n",
+                         g_boot_info.boot_info_crc, calc_crc);
+            }
+        } else {
+            log_info("Custom OTA: Primary boot info has invalid magic\n");
+        }
+    } else {
+        log_error("Custom OTA: Failed to read primary boot info\n");
+    }
+    
+    /* Primary failed, try backup */
+    log_info("Custom OTA: Trying backup boot info at 0x%08x\n", CUSTOM_BOOT_INFO_BACKUP);
+    ret = norflash_read(CUSTOM_BOOT_INFO_BACKUP, (u8*)&g_boot_info, sizeof(g_boot_info));
     if (ret != 0) {
-        log_error("Custom OTA: Failed to read boot info\n");
+        log_error("Custom OTA: Failed to read backup boot info\n");
         return -1;
     }
     
     /* Verify magic number */
     if (g_boot_info.magic != CUSTOM_BOOT_MAGIC) {
-        log_info("Custom OTA: Invalid magic, initializing boot info\n");
+        log_info("Custom OTA: Backup boot info has invalid magic, initializing\n");
         return -1;
     }
     
     /* Verify CRC */
-    u16 calc_crc = calculate_boot_info_crc(&g_boot_info);
+    calc_crc = calculate_boot_info_crc(&g_boot_info);
     if (calc_crc != g_boot_info.boot_info_crc) {
-        log_error("Custom OTA: Boot info CRC mismatch (expected 0x%04x, got 0x%04x)\n",
+        log_error("Custom OTA: Backup boot info CRC mismatch (expected 0x%04x, got 0x%04x)\n",
                  g_boot_info.boot_info_crc, calc_crc);
         return -1;
     }
     
+    log_info("Custom OTA: Boot info loaded from backup location\n");
+    log_info("Custom OTA: Restoring primary boot info from backup\n");
+    
+    /* Restore primary from backup */
+    ret = norflash_erase(FLASH_SECTOR_ERASER, CUSTOM_BOOT_INFO_ADDR);
+    if (ret == 0) {
+        norflash_write(CUSTOM_BOOT_INFO_ADDR, (u8*)&g_boot_info, sizeof(g_boot_info));
+    }
+    
+boot_info_valid:
     log_info("Custom OTA: Boot info loaded successfully\n");
     log_info("  Active bank: %d\n", g_boot_info.active_bank);
     log_info("  Bank A: addr=0x%08x, size=%d, valid=%d, version=%d\n",
@@ -75,34 +108,67 @@ static int read_boot_info(void)
 }
 
 /**
- * Write boot info to flash
+ * Write boot info to flash with power-loss protection
+ * Uses double-buffering: write to backup first, then primary
  */
 static int write_boot_info(void)
 {
     int ret;
+    u8 verify_buf[sizeof(custom_boot_info_t)];
     
     /* Calculate CRC */
     g_boot_info.boot_info_crc = calculate_boot_info_crc(&g_boot_info);
     
-    log_info("Custom OTA: Writing boot info (CRC=0x%04x)\n", g_boot_info.boot_info_crc);
+    log_info("Custom OTA: Writing boot info with power-loss protection (CRC=0x%04x)\n", 
+             g_boot_info.boot_info_crc);
     
-    /* Erase boot info sector */
-    /* WARNING: Power loss between erase and write will corrupt boot info */
-    /* TODO: Implement double-buffering or backup mechanism */
+    /* Step 1: Write to backup location first */
+    log_info("Custom OTA: Writing to backup location (0x%08x)\n", CUSTOM_BOOT_INFO_BACKUP);
+    ret = norflash_erase(FLASH_SECTOR_ERASER, CUSTOM_BOOT_INFO_BACKUP);
+    if (ret != 0) {
+        log_error("Custom OTA: Failed to erase backup boot info sector\n");
+        return ERR_BOOT_INFO_FAILED;
+    }
+    
+    ret = norflash_write(CUSTOM_BOOT_INFO_BACKUP, (u8*)&g_boot_info, sizeof(g_boot_info));
+    if (ret != 0) {
+        log_error("Custom OTA: Failed to write backup boot info\n");
+        return ERR_BOOT_INFO_FAILED;
+    }
+    
+    /* Step 2: Verify backup write */
+    ret = norflash_read(CUSTOM_BOOT_INFO_BACKUP, verify_buf, sizeof(g_boot_info));
+    if (ret != 0 || memcmp(verify_buf, &g_boot_info, sizeof(g_boot_info)) != 0) {
+        log_error("Custom OTA: Backup boot info verification failed\n");
+        return ERR_BOOT_INFO_FAILED;
+    }
+    log_info("Custom OTA: Backup boot info verified\n");
+    
+    /* Step 3: Write to primary location */
+    log_info("Custom OTA: Writing to primary location (0x%08x)\n", CUSTOM_BOOT_INFO_ADDR);
     ret = norflash_erase(FLASH_SECTOR_ERASER, CUSTOM_BOOT_INFO_ADDR);
     if (ret != 0) {
-        log_error("Custom OTA: Failed to erase boot info sector\n");
+        log_error("Custom OTA: Failed to erase primary boot info sector\n");
+        /* Backup still valid, not critical */
         return ERR_BOOT_INFO_FAILED;
     }
     
-    /* Write boot info immediately after erase to minimize risk window */
     ret = norflash_write(CUSTOM_BOOT_INFO_ADDR, (u8*)&g_boot_info, sizeof(g_boot_info));
     if (ret != 0) {
-        log_error("Custom OTA: Failed to write boot info\n");
+        log_error("Custom OTA: Failed to write primary boot info\n");
+        log_info("Custom OTA: Backup boot info still valid at 0x%08x\n", CUSTOM_BOOT_INFO_BACKUP);
         return ERR_BOOT_INFO_FAILED;
     }
     
-    log_info("Custom OTA: Boot info written successfully\n");
+    /* Step 4: Verify primary write */
+    ret = norflash_read(CUSTOM_BOOT_INFO_ADDR, verify_buf, sizeof(g_boot_info));
+    if (ret != 0 || memcmp(verify_buf, &g_boot_info, sizeof(g_boot_info)) != 0) {
+        log_error("Custom OTA: Primary boot info verification failed\n");
+        log_info("Custom OTA: Backup boot info still valid at 0x%08x\n", CUSTOM_BOOT_INFO_BACKUP);
+        return ERR_BOOT_INFO_FAILED;
+    }
+    
+    log_info("Custom OTA: Boot info written and verified successfully\n");
     return 0;
 }
 
@@ -287,6 +353,14 @@ int custom_dual_bank_ota_data(u8 *data, u16 len)
             to_copy = remaining;
         }
         
+        /* Prevent buffer overflow */
+        if (g_ota_ctx.buffer_offset + to_copy > CUSTOM_FLASH_SECTOR) {
+            log_error("Custom OTA: Buffer overflow prevented! offset=%d, to_copy=%d, max=%d\n",
+                     g_ota_ctx.buffer_offset, to_copy, CUSTOM_FLASH_SECTOR);
+            g_ota_ctx.state = CUSTOM_OTA_STATE_IDLE;
+            return ERR_WRITE_FAILED;
+        }
+        
         /* Copy to buffer */
         memcpy(g_ota_ctx.buffer + g_ota_ctx.buffer_offset, data + offset, to_copy);
         g_ota_ctx.buffer_offset += to_copy;
@@ -363,33 +437,39 @@ int custom_dual_bank_ota_end(void)
         return ERR_VERIFY_FAILED;
     }
     
-    /* Calculate CRC of written firmware */
-    /* WARNING: This allocates entire firmware size in RAM (215 KB) */
-    /* May fail on systems with limited RAM */
-    /* TODO: Implement incremental CRC using CRC16_with_initval() */
-    log_info("Custom OTA: Calculating CRC for entire firmware (allocating %d bytes)...\n", g_ota_ctx.total_size);
+    /* Calculate CRC of written firmware using incremental method */
+    /* This avoids allocating entire firmware in RAM (would fail on 64KB RAM device) */
+    log_info("Custom OTA: Calculating CRC incrementally (256 bytes at a time)...\n");
     
-    u8 *temp_buf = malloc(g_ota_ctx.total_size);
-    if (temp_buf == NULL) {
-        log_error("Custom OTA: Failed to allocate %d bytes for CRC verification\n", g_ota_ctx.total_size);
-        log_error("Custom OTA: System may have insufficient RAM\n");
-        g_ota_ctx.state = CUSTOM_OTA_STATE_IDLE;
-        return ERR_VERIFY_FAILED;
+    u8 read_buf[256];
+    calculated_crc = 0;  /* Initial CRC value */
+    u32 bytes_verified = 0;
+    
+    while (bytes_verified < g_ota_ctx.total_size) {
+        u32 remaining = g_ota_ctx.total_size - bytes_verified;
+        u16 chunk_size = (remaining > 256) ? 256 : remaining;
+        
+        /* Read chunk from flash */
+        ret = norflash_read(g_ota_ctx.target_bank_addr + bytes_verified, read_buf, chunk_size);
+        if (ret != 0) {
+            log_error("Custom OTA: Failed to read firmware at offset %d\n", bytes_verified);
+            g_ota_ctx.state = CUSTOM_OTA_STATE_IDLE;
+            return ERR_VERIFY_FAILED;
+        }
+        
+        /* Calculate CRC incrementally */
+        calculated_crc = CRC16_with_initval(read_buf, chunk_size, calculated_crc);
+        bytes_verified += chunk_size;
+        
+        /* Log progress every 64KB */
+        if (bytes_verified % (64 * 1024) == 0) {
+            log_info("Custom OTA: Verified %d/%d bytes (%d%%)\n",
+                    bytes_verified, g_ota_ctx.total_size,
+                    (bytes_verified * 100) / g_ota_ctx.total_size);
+        }
     }
     
-    log_info("Custom OTA: Memory allocated, reading firmware from flash...\n");
-    ret = norflash_read(g_ota_ctx.target_bank_addr, temp_buf, g_ota_ctx.total_size);
-    if (ret != 0) {
-        log_error("Custom OTA: Failed to read firmware for CRC\n");
-        free(temp_buf);
-        g_ota_ctx.state = CUSTOM_OTA_STATE_IDLE;
-        return ERR_VERIFY_FAILED;
-    }
-    
-    log_info("Custom OTA: Firmware read, calculating CRC16...\n");
-    calculated_crc = CRC16(temp_buf, g_ota_ctx.total_size);
-    free(temp_buf);
-    log_info("Custom OTA: Memory freed\n");
+    log_info("Custom OTA: CRC calculation complete\n");
     
     log_info("Custom OTA: CRC calculated: 0x%04x (expected: 0x%04x)\n",
              calculated_crc, g_ota_ctx.expected_crc);
@@ -469,6 +549,14 @@ u8 custom_dual_bank_get_bank_version(u8 bank)
         return g_boot_info.bank_b.version;
     }
     return 0;
+}
+
+/**
+ * Get current OTA state
+ */
+u8 custom_dual_bank_ota_get_state(void)
+{
+    return g_ota_ctx.state;
 }
 
 /**

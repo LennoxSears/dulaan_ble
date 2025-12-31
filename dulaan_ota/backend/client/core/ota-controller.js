@@ -581,7 +581,7 @@ class OTAController {
 
         try {
             const totalPackets = Math.ceil(this.totalSize / this.DATA_CHUNK_SIZE);
-            const PACKET_DELAY = 5000;  // 5 second delay - give device time to write to flash
+            const PACKET_DELAY = 150;  // 150ms delay - balanced for reliability and speed
             console.log(getTimestamp() + ` OTA: Sending ${totalPackets} packets (128 bytes each) with ${PACKET_DELAY}ms delay...`);
             
             let packetsSent = 0;
@@ -653,9 +653,6 @@ class OTAController {
                 // Update progress locally (device will also send notifications)
                 const progress = Math.floor((this.sentBytes / this.totalSize) * 100);
                 this.updateProgress(progress);
-
-                // Fixed 150ms delay - very safe for reliable transfer
-                await this.delay(150);
             }
 
             console.log(getTimestamp() + ' OTA: All data sent, sending FINISH command');

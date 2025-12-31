@@ -21,17 +21,9 @@
 /* Connection handle for notifications */
 static uint16_t vm_connection_handle = 0;
 
-/* OTA state machine */
-typedef enum {
-    OTA_STATE_IDLE = 0,
-    OTA_STATE_RECEIVING,
-    OTA_STATE_VERIFYING
-} ota_state_t;
-
-static ota_state_t ota_state = OTA_STATE_IDLE;
-static uint32_t ota_total_size = 0;
-static uint32_t ota_received_size = 0;
-static uint32_t ota_expected_crc = 0;
+/* OTA state tracking - removed duplicate state machine */
+/* State is now managed by custom_dual_bank_ota.c */
+/* Use custom_dual_bank_ota_get_state() to check state */
 static uint16_t ota_current_sequence = 0;  /* Track current packet sequence for ACK */
 
 /* Forward declarations */
@@ -383,7 +375,7 @@ int vm_ble_handle_ota_write(uint16_t conn_handle, const uint8_t *data, uint16_t 
                 return 0x0E;
             }
             
-            ota_state = OTA_STATE_RECEIVING;
+            /* State is now CUSTOM_OTA_STATE_RECEIVING (managed by custom_dual_bank_ota.c) */
             
             /* Send ready notification */
             ota_send_notification(conn_handle, VM_OTA_STATUS_READY, 0x00);
@@ -392,8 +384,9 @@ int vm_ble_handle_ota_write(uint16_t conn_handle, const uint8_t *data, uint16_t 
         
         case VM_OTA_CMD_DATA: {
             /* Data chunk: [0x02][seq_low][seq_high][data...] */
-            if (ota_state != OTA_STATE_RECEIVING) {
-                log_error("Custom OTA: Not in receiving state\n");
+            u8 current_state = custom_dual_bank_ota_get_state();
+            if (current_state != CUSTOM_OTA_STATE_RECEIVING) {
+                log_error("Custom OTA: Not in receiving state (state=%d)\n", current_state);
                 ota_send_notification(conn_handle, VM_OTA_STATUS_ERROR, 0x03);
                 return 0x0E;
             }
@@ -412,9 +405,8 @@ int vm_ble_handle_ota_write(uint16_t conn_handle, const uint8_t *data, uint16_t 
             ret = custom_dual_bank_ota_data(firmware_data, data_len);
             if (ret != 0) {
                 log_error("Custom OTA: Data write failed with error %d\n", ret);
-                custom_dual_bank_ota_abort();  /* Reset both state machines */
+                custom_dual_bank_ota_abort();  /* Reset state machine */
                 ota_send_notification(conn_handle, VM_OTA_STATUS_ERROR, ret);
-                ota_state = OTA_STATE_IDLE;
                 return 0x0E;
             }
             
@@ -432,8 +424,9 @@ int vm_ble_handle_ota_write(uint16_t conn_handle, const uint8_t *data, uint16_t 
         
         case VM_OTA_CMD_FINISH: {
             /* Finish OTA: [0x03] */
-            if (ota_state != OTA_STATE_RECEIVING) {
-                log_error("Custom OTA: Not in receiving state\n");
+            u8 current_state = custom_dual_bank_ota_get_state();
+            if (current_state != CUSTOM_OTA_STATE_RECEIVING) {
+                log_error("Custom OTA: Not in receiving state (state=%d)\n", current_state);
                 ota_send_notification(conn_handle, VM_OTA_STATUS_ERROR, 0x06);
                 return 0x0E;
             }
@@ -444,9 +437,8 @@ int vm_ble_handle_ota_write(uint16_t conn_handle, const uint8_t *data, uint16_t 
             ret = custom_dual_bank_ota_end();
             if (ret != 0) {
                 log_error("Custom OTA: Finish failed with error %d\n", ret);
-                custom_dual_bank_ota_abort();  /* Reset both state machines */
+                custom_dual_bank_ota_abort();  /* Reset state machine */
                 ota_send_notification(conn_handle, VM_OTA_STATUS_ERROR, ret);
-                ota_state = OTA_STATE_IDLE;
                 return 0x0E;
             }
             
