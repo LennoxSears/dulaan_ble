@@ -2,6 +2,12 @@
 
 Bluetooth Low Energy (BLE) firmware for vibration motor control on JieLi AC632N chip.
 
+## 📚 Documentation
+
+- **[Quick Start](docs/OTA_QUICK_START.md)** - Get started with OTA updates
+- **[Documentation Index](docs/README.md)** - Complete documentation guide
+- **[OTA Troubleshooting](docs/ota/OTA_UART_DEBUG_GUIDE.md)** - Debug flash erase errors
+
 ---
 
 ## Hardware
