@@ -288,17 +288,32 @@ int custom_dual_bank_ota_start(u32 size, u16 crc, u8 version)
     g_ota_ctx.buffer_offset = 0;
     
     /* Erase target bank */
-    sectors = (CUSTOM_BANK_SIZE + CUSTOM_FLASH_SECTOR - 1) / CUSTOM_FLASH_SECTOR;
-    log_info("Custom OTA: Erasing %d sectors at bank 0x%08x...\n", sectors, g_ota_ctx.target_bank_addr);
-    log_info("Custom OTA: Active bank: %d, Target bank: %d\n", g_boot_info.active_bank, target_bank);
+    /* CRITICAL: Only erase the actual firmware size, not entire bank */
+    /* This reduces erase time and avoids potential conflicts */
+    u32 size_to_erase = (size + CUSTOM_FLASH_SECTOR - 1) & ~(CUSTOM_FLASH_SECTOR - 1);  /* Round up to 4KB */
+    sectors = size_to_erase / CUSTOM_FLASH_SECTOR;
     
-    for (i = 0; i < sectors; i++) {
+    log_info("Custom OTA: Erasing %d sectors (%d KB) at bank 0x%08x...\n", 
+             sectors, size_to_erase / 1024, g_ota_ctx.target_bank_addr);
+    log_info("Custom OTA: Active bank: %d, Target bank: %d\n", g_boot_info.active_bank, target_bank);
+    log_info("Custom OTA: Firmware size: %d bytes, will erase: %d bytes\n", size, size_to_erase);
+    
+    /* Test first sector erase before committing to full erase */
+    log_info("Custom OTA: Testing first sector erase at 0x%08x\n", g_ota_ctx.target_bank_addr);
+    ret = norflash_erase(FLASH_SECTOR_ERASER, g_ota_ctx.target_bank_addr);
+    if (ret != 0) {
+        log_error("Custom OTA: First sector erase FAILED at 0x%08x, ret=%d\n", 
+                 g_ota_ctx.target_bank_addr, ret);
+        log_error("Custom OTA: Flash may be write-protected or address invalid\n");
+        log_error("Custom OTA: Check flash layout and SDK configuration\n");
+        g_ota_ctx.state = CUSTOM_OTA_STATE_IDLE;
+        return ERR_ERASE_FAILED;
+    }
+    log_info("Custom OTA: First sector erase SUCCESS\n");
+    
+    /* Erase remaining sectors */
+    for (i = 1; i < sectors; i++) {
         u32 addr = g_ota_ctx.target_bank_addr + (i * CUSTOM_FLASH_SECTOR);
-        
-        /* Log first erase attempt */
-        if (i == 0) {
-            log_info("Custom OTA: First erase at 0x%08x\n", addr);
-        }
         
         ret = norflash_erase(FLASH_SECTOR_ERASER, addr);
         if (ret != 0) {
