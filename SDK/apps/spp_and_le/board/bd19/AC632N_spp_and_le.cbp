@@ -505,6 +505,8 @@
 <Unit filename="../../../../apps/spp_and_le/examples/motor_control/vibration_motor_ble/vm_motor_control.h" />
 <Unit filename="../../../../apps/spp_and_le/examples/motor_control/vibration_motor_ble/vm_ble_service.c"><Option compilerVer="CC"/></Unit>
 <Unit filename="../../../../apps/spp_and_le/examples/motor_control/vibration_motor_ble/vm_ble_service.h" />
+<Unit filename="../../../../apps/spp_and_le/examples/motor_control/vibration_motor_ble/custom_dual_bank_ota.c"><Option compilerVer="CC"/></Unit>
+<Unit filename="../../../../apps/spp_and_le/examples/motor_control/vibration_motor_ble/custom_dual_bank_ota.h" />
 <Unit filename="../../../../apps/spp_and_le/examples/motor_control/vibration_motor_ble/vm_ble_profile.h" />
 <Unit filename="../../../../apps/spp_and_le/examples/motor_control/vibration_motor_ble/vm_config.h" />
 <Unit filename="../../../../apps/spp_and_le/examples/nonconn_24g/app_nonconn_24g.c"><Option compilerVer="CC"/></Unit>

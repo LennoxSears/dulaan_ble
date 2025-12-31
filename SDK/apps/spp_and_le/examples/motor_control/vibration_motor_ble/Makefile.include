@@ -4,7 +4,8 @@
 # Source files
 VM_BLE_SRCS := \
 	vibration_motor_ble/vm_ble_service.c \
-	vibration_motor_ble/vm_motor_control.c
+	vibration_motor_ble/vm_motor_control.c \
+	vibration_motor_ble/custom_dual_bank_ota.c
 
 # Include directory
 VM_BLE_INC := -Ivibration_motor_ble
