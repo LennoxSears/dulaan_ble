@@ -474,10 +474,11 @@ class OTAController {
 
     /**
      * Calculate CRC16 (matches SDK's CRC16 function)
-     * This is a standard CRC16 algorithm used by JieLi SDK
+     * Uses CRC16-CCITT algorithm with init value 0x0000
+     * Note: SDK's CRC16() uses init value 0, not 0xFFFF
      */
     calculateCRC16(data) {
-        let crc = 0;
+        let crc = 0;  // SDK uses 0, not 0xFFFF
         for (let i = 0; i < data.length; i++) {
             crc ^= data[i] << 8;
             for (let j = 0; j < 8; j++) {
@@ -678,16 +679,12 @@ class OTAController {
             throw new Error('BleClient not available');
         }
 
-        const crc = this.calculateCRC32(this.firmwareData);
-        console.log(getTimestamp() + ' OTA: Calculated CRC32:', crc.toString(16));
+        console.log(getTimestamp() + ' OTA: Sending FINISH command (firmware will verify CRC)');
 
-        // FINISH command: [0x03][crc_low][crc_high][crc_mid][crc_top]
-        const data = new Uint8Array(5);
+        // FINISH command: [0x03] (1 byte only)
+        // Firmware verifies CRC internally using value from START command
+        const data = new Uint8Array(1);
         data[0] = 0x03; // FINISH command
-        data[1] = crc & 0xFF;
-        data[2] = (crc >> 8) & 0xFF;
-        data[3] = (crc >> 16) & 0xFF;
-        data[4] = (crc >> 24) & 0xFF;
 
         try {
             await BleClient.writeWithoutResponse(

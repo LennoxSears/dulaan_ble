@@ -6,6 +6,10 @@
 #include "system/includes.h"
 #include "asm/crc16.h"
 
+/* Logging macros */
+#define log_info(fmt, ...)   printf("[CUSTOM_OTA] " fmt, ##__VA_ARGS__)
+#define log_error(fmt, ...)  printf("[CUSTOM_OTA_ERROR] " fmt, ##__VA_ARGS__)
+
 /* Global boot info and OTA context */
 static custom_boot_info_t g_boot_info;
 static custom_ota_ctx_t g_ota_ctx;
@@ -83,13 +87,15 @@ static int write_boot_info(void)
     log_info("Custom OTA: Writing boot info (CRC=0x%04x)\n", g_boot_info.boot_info_crc);
     
     /* Erase boot info sector */
+    /* WARNING: Power loss between erase and write will corrupt boot info */
+    /* TODO: Implement double-buffering or backup mechanism */
     ret = norflash_erase(0, CUSTOM_BOOT_INFO_ADDR);
     if (ret != 0) {
         log_error("Custom OTA: Failed to erase boot info sector\n");
         return ERR_BOOT_INFO_FAILED;
     }
     
-    /* Write boot info */
+    /* Write boot info immediately after erase to minimize risk window */
     ret = norflash_write(CUSTOM_BOOT_INFO_ADDR, (u8*)&g_boot_info, sizeof(g_boot_info));
     if (ret != 0) {
         log_error("Custom OTA: Failed to write boot info\n");
@@ -328,45 +334,20 @@ int custom_dual_bank_ota_end(void)
     }
     
     /* Calculate CRC of written firmware */
-    log_info("Custom OTA: Calculating CRC...\n");
-    addr = g_ota_ctx.target_bank_addr;
-    remaining = g_ota_ctx.total_size;
-    calculated_crc = 0;
+    /* WARNING: This allocates entire firmware size in RAM (215 KB) */
+    /* May fail on systems with limited RAM */
+    /* TODO: Implement incremental CRC using CRC16_with_initval() */
+    log_info("Custom OTA: Calculating CRC for entire firmware (allocating %d bytes)...\n", g_ota_ctx.total_size);
     
-    while (remaining > 0) {
-        u32 to_read = (remaining > sizeof(verify_buf)) ? sizeof(verify_buf) : remaining;
-        
-        ret = norflash_read(addr, verify_buf, to_read);
-        if (ret != 0) {
-            log_error("Custom OTA: Read failed during verify at 0x%08x\n", addr);
-            g_ota_ctx.state = CUSTOM_OTA_STATE_IDLE;
-            return ERR_VERIFY_FAILED;
-        }
-        
-        /* Calculate CRC incrementally */
-        if (calculated_crc == 0 && addr == g_ota_ctx.target_bank_addr) {
-            /* First chunk */
-            calculated_crc = CRC16(verify_buf, to_read);
-        } else {
-            /* Subsequent chunks - need to continue CRC calculation */
-            /* Note: SDK's CRC16 doesn't support incremental, so we read all at once */
-            /* This is a limitation we'll handle by reading in larger chunks */
-        }
-        
-        addr += to_read;
-        remaining -= to_read;
-    }
-    
-    /* For now, recalculate CRC by reading entire firmware at once */
-    /* This is memory-intensive but ensures correct CRC */
-    log_info("Custom OTA: Recalculating CRC for entire firmware...\n");
     u8 *temp_buf = malloc(g_ota_ctx.total_size);
     if (temp_buf == NULL) {
-        log_error("Custom OTA: Failed to allocate memory for CRC verification\n");
+        log_error("Custom OTA: Failed to allocate %d bytes for CRC verification\n", g_ota_ctx.total_size);
+        log_error("Custom OTA: System may have insufficient RAM\n");
         g_ota_ctx.state = CUSTOM_OTA_STATE_IDLE;
         return ERR_VERIFY_FAILED;
     }
     
+    log_info("Custom OTA: Memory allocated, reading firmware from flash...\n");
     ret = norflash_read(g_ota_ctx.target_bank_addr, temp_buf, g_ota_ctx.total_size);
     if (ret != 0) {
         log_error("Custom OTA: Failed to read firmware for CRC\n");
@@ -375,8 +356,10 @@ int custom_dual_bank_ota_end(void)
         return ERR_VERIFY_FAILED;
     }
     
+    log_info("Custom OTA: Firmware read, calculating CRC16...\n");
     calculated_crc = CRC16(temp_buf, g_ota_ctx.total_size);
     free(temp_buf);
+    log_info("Custom OTA: Memory freed\n");
     
     log_info("Custom OTA: CRC calculated: 0x%04x (expected: 0x%04x)\n",
              calculated_crc, g_ota_ctx.expected_crc);
