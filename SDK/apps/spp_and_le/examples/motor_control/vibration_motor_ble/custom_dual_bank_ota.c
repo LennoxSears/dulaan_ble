@@ -223,13 +223,21 @@ int custom_dual_bank_ota_start(u32 size, u16 crc, u8 version)
     
     /* Erase target bank */
     sectors = (CUSTOM_BANK_SIZE + CUSTOM_FLASH_SECTOR - 1) / CUSTOM_FLASH_SECTOR;
-    log_info("Custom OTA: Erasing %d sectors...\n", sectors);
+    log_info("Custom OTA: Erasing %d sectors at bank 0x%08x...\n", sectors, g_ota_ctx.target_bank_addr);
+    log_info("Custom OTA: Active bank: %d, Target bank: %d\n", g_boot_info.active_bank, target_bank);
     
     for (i = 0; i < sectors; i++) {
         u32 addr = g_ota_ctx.target_bank_addr + (i * CUSTOM_FLASH_SECTOR);
+        
+        /* Log first erase attempt */
+        if (i == 0) {
+            log_info("Custom OTA: First erase at 0x%08x\n", addr);
+        }
+        
         ret = norflash_erase(0, addr);
         if (ret != 0) {
-            log_error("Custom OTA: Erase failed at 0x%08x\n", addr);
+            log_error("Custom OTA: Erase failed at 0x%08x, ret=%d, sector %d/%d\n", 
+                     addr, ret, i + 1, sectors);
             g_ota_ctx.state = CUSTOM_OTA_STATE_IDLE;
             return ERR_ERASE_FAILED;
         }
