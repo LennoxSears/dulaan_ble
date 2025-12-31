@@ -393,18 +393,16 @@ class OTAController {
      */
     getErrorMessage(code) {
         const errors = {
-            0x01: 'Invalid START command',
-            0x02: 'Firmware size too large',
-            0x03: 'Not in receiving state',
-            0x04: 'Invalid DATA packet',
-            0x05: 'Flash write failed',
-            0x06: 'Not in receiving state',
-            0x07: 'Invalid FINISH command',
-            0x08: 'Size mismatch',
-            0x09: 'CRC verification failed',
-            0xFF: 'Unknown command'
+            0x01: 'Invalid size (firmware too large or zero)',
+            0x02: 'Flash erase failed',
+            0x03: 'Flash write failed',
+            0x04: 'CRC verification failed',
+            0x05: 'Boot info update failed',
+            0x06: 'OTA not initialized',
+            0x07: 'Invalid state (OTA already in progress)',
+            0xFF: 'Unknown error'
         };
-        return errors[code] || 'Unknown error';
+        return errors[code] || `Unknown error (0x${code.toString(16).padStart(2, '0')})`;
     }
 
     /**
