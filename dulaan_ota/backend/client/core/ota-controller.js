@@ -493,7 +493,7 @@ class OTAController {
     }
 
     /**
-     * Send START command with CRC for SDK dual-bank verification
+     * Send START command with CRC for custom dual-bank OTA
      */
     async sendStartCommand() {
         const BleClient = getBleClient();
@@ -504,10 +504,14 @@ class OTAController {
         // Calculate CRC16 of firmware data (app.bin)
         const firmwareCRC = this.calculateCRC16(this.firmwareData);
         
+        // Firmware version (increment this for each new firmware)
+        const firmwareVersion = 1;
+        
         console.log(getTimestamp() + ` OTA: Calculated firmware CRC16: 0x${firmwareCRC.toString(16).padStart(4, '0')}`);
+        console.log(getTimestamp() + ` OTA: Firmware version: ${firmwareVersion}`);
 
-        // START command: [0x01][size_low][size_high][size_mid][size_top][crc_low][crc_high]
-        const data = new Uint8Array(7);
+        // START command: [0x01][size_low][size_high][size_mid][size_top][crc_low][crc_high][version]
+        const data = new Uint8Array(8);
         data[0] = 0x01; // START command
         data[1] = this.totalSize & 0xFF;
         data[2] = (this.totalSize >> 8) & 0xFF;
@@ -515,8 +519,9 @@ class OTAController {
         data[4] = (this.totalSize >> 24) & 0xFF;
         data[5] = firmwareCRC & 0xFF;
         data[6] = (firmwareCRC >> 8) & 0xFF;
+        data[7] = firmwareVersion;
 
-        console.log(getTimestamp() + ` OTA: Sending START command, size: ${this.totalSize}, CRC: 0x${firmwareCRC.toString(16).padStart(4, '0')}`);
+        console.log(getTimestamp() + ` OTA: Sending START command, size: ${this.totalSize}, CRC: 0x${firmwareCRC.toString(16).padStart(4, '0')}, version: ${firmwareVersion}`);
 
         try {
             await BleClient.writeWithoutResponse(

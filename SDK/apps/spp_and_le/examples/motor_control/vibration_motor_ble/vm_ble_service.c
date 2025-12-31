@@ -12,10 +12,11 @@
 #include "app_power_manage.h"  /* For get_vbat_percent() */
 #include "update/dual_bank_updata_api.h"  /* For OTA update */
 #include "system/includes.h"  /* For cpu_reset() */
+#include "custom_dual_bank_ota.h"  /* Custom dual-bank OTA implementation */
 
-/* Logging - DISABLED to reduce firmware size */
-#define log_info(fmt, ...)   // Disabled
-#define log_error(fmt, ...)  // Disabled
+/* Logging - RE-ENABLED for custom OTA debugging */
+#define log_info(fmt, ...)   printf("[INFO] " fmt, ##__VA_ARGS__)
+#define log_error(fmt, ...)  printf("[ERROR] " fmt, ##__VA_ARGS__)
 
 /* Connection handle for notifications */
 static uint16_t vm_connection_handle = 0;
@@ -251,10 +252,17 @@ int vm_ble_service_init(void)
         return ret;
     }
 
+    /* Initialize custom dual-bank OTA system */
+    ret = custom_dual_bank_ota_init();
+    if (ret != 0) {
+        log_error("Failed to initialize custom dual-bank OTA: %d\n", ret);
+        return ret;
+    }
+
     /* Register GATT profile with BLE stack */
     ble_gatt_server_set_profile(vm_motor_profile_data, sizeof(vm_motor_profile_data));
 
-    log_info("VM BLE service initialized - LESC + Just-Works\n");
+    log_info("VM BLE service initialized - LESC + Just-Works + Custom Dual-Bank OTA\n");
 
     /* Note: The server configuration (vm_server_cfg) needs to be registered
      * with the BLE stack during application initialization. This is typically
@@ -337,10 +345,10 @@ static int ota_write_complete_callback(void *priv)
     return 0;  /* Success */
 }
 
-/* Note: CRC verification is handled by dual_bank API internally */
+/* Note: Using custom dual-bank implementation with low-level flash functions */
 
 /*
- * OTA Write Handler - implements custom OTA protocol
+ * OTA Write Handler - implements custom dual-bank OTA protocol
  */
 int vm_ble_handle_ota_write(uint16_t conn_handle, const uint8_t *data, uint16_t len)
 {
@@ -350,59 +358,32 @@ int vm_ble_handle_ota_write(uint16_t conn_handle, const uint8_t *data, uint16_t 
     }
     
     uint8_t cmd = data[0];
+    int ret;
     
     switch (cmd) {
         case VM_OTA_CMD_START: {
-            /* Start OTA: [0x01][size_low][size_high][size_mid][size_top][crc_low][crc_high] */
-            if (len != 7) {
-                log_error("OTA: Invalid START packet length (expected 7, got %d)\n", len);
+            /* Start OTA: [0x01][size_low][size_high][size_mid][size_top][crc_low][crc_high][version] */
+            if (len != 8) {
+                log_error("OTA: Invalid START packet length (expected 8, got %d)\n", len);
                 ota_send_notification(conn_handle, VM_OTA_STATUS_ERROR, 0x01);
                 return 0x0D;
             }
             
-            ota_total_size = data[1] | (data[2] << 8) | (data[3] << 16) | (data[4] << 24);
-            uint16_t fw_crc = data[5] | (data[6] << 8);
+            u32 size = data[1] | (data[2] << 8) | (data[3] << 16) | (data[4] << 24);
+            u16 crc = data[5] | (data[6] << 8);
+            u8 version = data[7];
             
-            if (ota_total_size == 0 || ota_total_size > VM_OTA_MAX_SIZE) {
-                log_error("OTA: Invalid firmware size: %d\n", ota_total_size);
-                ota_send_notification(conn_handle, VM_OTA_STATUS_ERROR, 0x02);
-                return 0x0E;  /* ATT_ERROR_VALUE_NOT_ALLOWED */
-            }
+            log_info("Custom OTA: START - size=%d, crc=0x%04x, version=%d\n", size, crc, version);
             
-            log_info("OTA: Start, size=%d bytes, CRC=0x%04x\n", ota_total_size, fw_crc);
-            
-            /* Check buffer size before init */
-            uint32_t max_buf = get_dual_bank_passive_update_max_buf();
-            log_info("OTA: Max buffer size: %d bytes\n", max_buf);
-            
-            if (max_buf < 2048) {  /* Need at least 2KB buffer for safety */
-                log_error("OTA: Buffer too small: %d bytes (need 2048)\n", max_buf);
-                ota_send_notification(conn_handle, VM_OTA_STATUS_ERROR, 0x02);
-                return 0x0E;
-            }
-            
-            /* Initialize dual-bank update with CRC for app.bin verification */
-            /* SDK will verify CRC automatically during dual_bank_update_verify() */
-            uint32_t ret = dual_bank_passive_update_init(fw_crc, ota_total_size, 128, NULL);
+            /* Start custom dual-bank OTA */
+            ret = custom_dual_bank_ota_start(size, crc, version);
             if (ret != 0) {
-                log_error("OTA: Init failed: %d\n", ret);
-                ota_send_notification(conn_handle, VM_OTA_STATUS_ERROR, 0x02);
+                log_error("Custom OTA: Start failed with error %d\n", ret);
+                ota_send_notification(conn_handle, VM_OTA_STATUS_ERROR, ret);
                 return 0x0E;
             }
             
-            /* Check if enough space available */
-            ret = dual_bank_update_allow_check(ota_total_size);
-            if (ret != 0) {
-                log_error("OTA: Not enough space: %d\n", ret);
-                dual_bank_passive_update_exit(NULL);
-                ota_send_notification(conn_handle, VM_OTA_STATUS_ERROR, 0x02);
-                return 0x0E;
-            }
-            
-            ota_received_size = 0;
             ota_state = OTA_STATE_RECEIVING;
-            
-            log_info("OTA: Dual-bank initialized, ready to receive app.bin\n");
             
             /* Send ready notification */
             ota_send_notification(conn_handle, VM_OTA_STATUS_READY, 0x00);
@@ -412,94 +393,68 @@ int vm_ble_handle_ota_write(uint16_t conn_handle, const uint8_t *data, uint16_t 
         case VM_OTA_CMD_DATA: {
             /* Data chunk: [0x02][seq_low][seq_high][data...] */
             if (ota_state != OTA_STATE_RECEIVING) {
-                log_error("OTA: Not in receiving state\n");
+                log_error("Custom OTA: Not in receiving state\n");
                 ota_send_notification(conn_handle, VM_OTA_STATUS_ERROR, 0x03);
                 return 0x0E;
             }
             
             if (len < 4) {
-                log_error("OTA: Invalid DATA packet length\n");
+                log_error("Custom OTA: Invalid DATA packet length\n");
                 ota_send_notification(conn_handle, VM_OTA_STATUS_ERROR, 0x04);
                 return 0x0D;
             }
             
-            uint16_t seq = data[1] | (data[2] << 8);
-            uint16_t data_len = len - 3;
-            uint8_t *firmware_data = (uint8_t *)&data[3];
+            u16 seq = data[1] | (data[2] << 8);
+            u16 data_len = len - 3;
+            u8 *firmware_data = (u8 *)&data[3];
             
-            /* Store sequence number for ACK callback */
-            ota_current_sequence = seq;
-            
-            /* Write to flash using dual-bank API with callback for flow control */
-            uint32_t ret = dual_bank_update_write(firmware_data, data_len, ota_write_complete_callback);
+            /* Write firmware data using custom dual-bank */
+            ret = custom_dual_bank_ota_data(firmware_data, data_len);
             if (ret != 0) {
-                log_error("OTA: Flash write failed: %d\n", ret);
-                ota_send_notification(conn_handle, VM_OTA_STATUS_ERROR, 0x05);
-                dual_bank_passive_update_exit(NULL);
+                log_error("Custom OTA: Data write failed with error %d\n", ret);
+                ota_send_notification(conn_handle, VM_OTA_STATUS_ERROR, ret);
                 ota_state = OTA_STATE_IDLE;
                 return 0x0E;
             }
             
-            ota_received_size += data_len;
+            /* Send ACK with sequence number */
+            ota_send_notification(conn_handle, VM_OTA_STATUS_ACK, seq & 0xFF);
             
-            /* Note: ACK will be sent by ota_write_complete_callback when write finishes */
-            /* Progress notifications removed - app can calculate from ACK sequence numbers */
+            /* Send progress update every 10 packets */
+            if (seq % 10 == 0) {
+                u8 progress = custom_dual_bank_ota_get_progress();
+                ota_send_notification(conn_handle, VM_OTA_STATUS_PROGRESS, progress);
+            }
             
             break;
         }
         
         case VM_OTA_CMD_FINISH: {
-            /* Finish OTA: [0x03][crc_low][crc_high][crc_mid][crc_top] */
+            /* Finish OTA: [0x03] */
             if (ota_state != OTA_STATE_RECEIVING) {
-                log_error("OTA: Not in receiving state\n");
+                log_error("Custom OTA: Not in receiving state\n");
                 ota_send_notification(conn_handle, VM_OTA_STATUS_ERROR, 0x06);
                 return 0x0E;
             }
             
-            if (len != 5) {
-                log_error("OTA: Invalid FINISH packet length\n");
-                ota_send_notification(conn_handle, VM_OTA_STATUS_ERROR, 0x07);
-                return 0x0D;
-            }
+            log_info("Custom OTA: FINISH - Verifying and switching banks...\n");
             
-            ota_expected_crc = data[1] | (data[2] << 8) | (data[3] << 16) | (data[4] << 24);
-            
-            log_info("OTA: Finish, received=%d, expected=%d, crc=0x%08x\n", 
-                     ota_received_size, ota_total_size, ota_expected_crc);
-            
-            /* Verify size */
-            if (ota_received_size != ota_total_size) {
-                log_error("OTA: Size mismatch\n");
-                ota_send_notification(conn_handle, VM_OTA_STATUS_ERROR, 0x08);
-                dual_bank_passive_update_exit(NULL);
-                ota_state = OTA_STATE_IDLE;
-                return 0x0E;
-            }
-            
-            /* Note: dual_bank API doesn't support external CRC verification */
-            /* We trust the data was written correctly */
-            log_info("OTA: Update complete, burning boot info...\n");
-            
-            /* Burn boot info to activate new firmware */
-            uint32_t ret = dual_bank_update_burn_boot_info(NULL);
+            /* Finalize OTA update (verifies CRC, updates boot info, resets) */
+            ret = custom_dual_bank_ota_end();
             if (ret != 0) {
-                log_error("OTA: Failed to burn boot info: %d\n", ret);
-                ota_send_notification(conn_handle, VM_OTA_STATUS_ERROR, 0x09);
-                dual_bank_passive_update_exit(NULL);
+                log_error("Custom OTA: Finish failed with error %d\n", ret);
+                ota_send_notification(conn_handle, VM_OTA_STATUS_ERROR, ret);
                 ota_state = OTA_STATE_IDLE;
                 return 0x0E;
             }
-            
-            log_info("OTA: Success, rebooting...\n");
             
             /* Send success notification */
             ota_send_notification(conn_handle, VM_OTA_STATUS_SUCCESS, 0x00);
             
-            /* Wait for notification to be sent */
+            /* Wait for notification to be sent, then device will reset */
             os_time_dly(10);  /* 100ms delay */
             
-            /* Reboot to apply update */
-            cpu_reset();
+            /* Note: custom_dual_bank_ota_end() calls cpu_reset() */
             
             break;
         }
