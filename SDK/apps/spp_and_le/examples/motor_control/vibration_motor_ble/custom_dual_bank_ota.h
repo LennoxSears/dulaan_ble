@@ -4,15 +4,20 @@
  * Implements dual-bank OTA update with automatic rollback using low-level
  * flash functions. Works with raw app.bin (~220 KB) instead of jl_isd.fw (450 KB).
  * 
- * Flash Layout (1MB total) - Optimized for maximum firmware capacity:
+ * Flash Layout (1MB total) - Balanced for firmware and data:
  * 0x000000 - 0x001000 (4 KB):    Bootloader (SDK managed)
  * 0x001000 - 0x001400 (1 KB):    Custom Boot Info
- * 0x001400 - 0x06F800 (445 KB):  Bank A (app.bin) - Max firmware size
- * 0x06F800 - 0x0DDC00 (445 KB):  Bank B (app.bin) - Max firmware size
- * 0x0DDC00 - 0x100000 (129 KB):  VM/Data partition (minimum required)
+ * 0x001400 - 0x04C400 (300 KB):  Bank A (app.bin)
+ * 0x04C400 - 0x097400 (300 KB):  Bank B (app.bin)
+ * 0x097400 - 0x100000 (419 KB):  VM/Data partition
  * 
- * Bank size maximized to 445 KB (455,680 bytes) to accommodate future growth.
- * Current firmware ~220 KB, providing 225 KB headroom (2x current size).
+ * Bank size: 300 KB (307,200 bytes)
+ * - Current firmware: ~220 KB
+ * - Headroom: 80 KB (36% growth potential)
+ * - VM/Data: 419 KB (ample space for settings, logs, bonding)
+ * 
+ * This balanced configuration provides sufficient firmware capacity while
+ * ensuring adequate space for runtime data storage.
  */
 
 #ifndef CUSTOM_DUAL_BANK_OTA_H
@@ -23,8 +28,8 @@
 /* Flash addresses and sizes */
 #define CUSTOM_BOOT_INFO_ADDR   0x001000    /* Boot info location */
 #define CUSTOM_BANK_A_ADDR      0x001400    /* Bank A start */
-#define CUSTOM_BANK_B_ADDR      0x06F800    /* Bank B start */
-#define CUSTOM_BANK_SIZE        (445 * 1024) /* 445 KB per bank (max safe size) */
+#define CUSTOM_BANK_B_ADDR      0x04C400    /* Bank B start */
+#define CUSTOM_BANK_SIZE        (300 * 1024) /* 300 KB per bank (balanced) */
 #define CUSTOM_FLASH_SECTOR     4096        /* 4KB sector size */
 
 /* Boot info magic and version */

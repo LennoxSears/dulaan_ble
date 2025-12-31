@@ -6,10 +6,11 @@ The device must be running the **exact same firmware** that you're testing OTA w
 
 ## Current Status
 
-- **Bank Size:** 445 KB (455,680 bytes) - **MAXIMIZED for 1MB flash**
-- **Current app.bin:** ~220 KB ✓ (fits with 225 KB headroom)
+- **Bank Size:** 300 KB (307,200 bytes) - **BALANCED configuration**
+- **Current app.bin:** ~220 KB ✓ (fits with 80 KB headroom)
+- **VM/Data Space:** 419 KB (ample for settings, logs, bonding)
 - **Device firmware:** Must match app.bin in dulaan_ota/
-- **Future-proof:** Can grow to 445 KB (2x current size)
+- **Growth potential:** Can grow to 300 KB (36% increase)
 
 ## Testing Steps
 
@@ -20,8 +21,8 @@ ls -lh dulaan_ota/app.bin
 # Should show: ~220K (220,000-224,000 bytes)
 
 # Verify it fits in bank
-echo "Max: $((445 * 1024)) bytes"
-# Should show: 455,680 bytes (445 KB)
+echo "Max: $((300 * 1024)) bytes"
+# Should show: 307,200 bytes (300 KB)
 ```
 
 ### 2. Flash Device (First Time)
@@ -43,12 +44,12 @@ SDK/cpu/bd19/tools/app.bin
 ## Common Issues
 
 ### Error: "Invalid START command" (0x01)
-**Cause:** Firmware size exceeds bank size (445 KB)
+**Cause:** Firmware size exceeds bank size (300 KB)
 
 **Solution:**
 1. Check app.bin size: `stat -c %s dulaan_ota/app.bin`
-2. Must be ≤ 455,680 bytes (445 KB)
-3. If larger, firmware is too big for 1MB flash (unlikely!)
+2. Must be ≤ 307,200 bytes (300 KB)
+3. If larger, optimize firmware or increase bank size
 
 ### Browser Cache Issue
 **Symptom:** Web shows different size than actual file
@@ -58,25 +59,31 @@ SDK/cpu/bd19/tools/app.bin
 2. Or clear browser cache
 3. Reload the firmware file
 
-## Flash Layout - Maximized for 1MB
+## Flash Layout - Balanced Configuration
 
-Current configuration uses **maximum safe bank size**:
+Current configuration balances firmware capacity with data storage:
 
 ```
 0x000000 - 0x001000 (4 KB):   Bootloader
 0x001000 - 0x001400 (1 KB):   Boot Info
-0x001400 - 0x06F800 (445 KB): Bank A (max firmware)
-0x06F800 - 0x0DDC00 (445 KB): Bank B (max firmware)
-0x0DDC00 - 0x100000 (129 KB): VM/Data (minimum required)
+0x001400 - 0x04C400 (300 KB): Bank A
+0x04C400 - 0x097400 (300 KB): Bank B
+0x097400 - 0x100000 (419 KB): VM/Data
 ```
 
-**Benefits:**
-- Maximum firmware capacity: 445 KB (455,680 bytes)
-- Current firmware: ~220 KB
-- **Headroom: 225 KB** (can more than double in size)
-- Future-proof for feature additions
+**Why 300 KB?**
+- **Firmware capacity:** 300 KB (307,200 bytes)
+- **Current firmware:** ~220 KB
+- **Headroom:** 80 KB (36% growth potential)
+- **VM/Data space:** 419 KB (ample for settings, logs, BLE bonding)
 
-**Note:** Bank size cannot be increased further without reducing VM/Data below minimum requirements.
+**Comparison:**
+- 216 KB banks: Too small (firmware doesn't fit)
+- 256 KB banks: Conservative (still tight)
+- **300 KB banks: BALANCED** ✓ (recommended)
+- 445 KB banks: Maximum (but only 129 KB for data - risky!)
+
+**Production-ready:** Provides sufficient firmware space while ensuring adequate data storage for long-term operation.
 
 ## File Locations
 
