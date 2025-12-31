@@ -6,9 +6,10 @@ The device must be running the **exact same firmware** that you're testing OTA w
 
 ## Current Status
 
-- **Bank Size:** 256 KB (262,144 bytes)
-- **Current app.bin:** ~220-224 KB ✓ (fits with headroom)
+- **Bank Size:** 445 KB (455,680 bytes) - **MAXIMIZED for 1MB flash**
+- **Current app.bin:** ~220 KB ✓ (fits with 225 KB headroom)
 - **Device firmware:** Must match app.bin in dulaan_ota/
+- **Future-proof:** Can grow to 445 KB (2x current size)
 
 ## Testing Steps
 
@@ -19,8 +20,8 @@ ls -lh dulaan_ota/app.bin
 # Should show: ~220K (220,000-224,000 bytes)
 
 # Verify it fits in bank
-echo "Max: $((256 * 1024)) bytes"
-# Should show: 262,144 bytes
+echo "Max: $((445 * 1024)) bytes"
+# Should show: 455,680 bytes (445 KB)
 ```
 
 ### 2. Flash Device (First Time)
@@ -42,12 +43,12 @@ SDK/cpu/bd19/tools/app.bin
 ## Common Issues
 
 ### Error: "Invalid START command" (0x01)
-**Cause:** Firmware size exceeds bank size (256 KB)
+**Cause:** Firmware size exceeds bank size (445 KB)
 
 **Solution:**
 1. Check app.bin size: `stat -c %s dulaan_ota/app.bin`
-2. Must be ≤ 262,144 bytes
-3. If larger, rebuild firmware or increase bank size
+2. Must be ≤ 455,680 bytes (445 KB)
+3. If larger, firmware is too big for 1MB flash (unlikely!)
 
 ### Browser Cache Issue
 **Symptom:** Web shows different size than actual file
@@ -57,22 +58,25 @@ SDK/cpu/bd19/tools/app.bin
 2. Or clear browser cache
 3. Reload the firmware file
 
-## Future: Increasing Bank Size
+## Flash Layout - Maximized for 1MB
 
-If firmware grows beyond 216 KB:
+Current configuration uses **maximum safe bank size**:
 
-1. **Update custom_dual_bank_ota.h:**
-   - Increase `CUSTOM_BANK_SIZE`
-   - Update `CUSTOM_BANK_B_ADDR`
-   - Update flash layout comments
+```
+0x000000 - 0x001000 (4 KB):   Bootloader
+0x001000 - 0x001400 (1 KB):   Boot Info
+0x001400 - 0x06F800 (445 KB): Bank A (max firmware)
+0x06F800 - 0x0DDC00 (445 KB): Bank B (max firmware)
+0x0DDC00 - 0x100000 (129 KB): VM/Data (minimum required)
+```
 
-2. **Rebuild firmware** with new bank size
+**Benefits:**
+- Maximum firmware capacity: 445 KB (455,680 bytes)
+- Current firmware: ~220 KB
+- **Headroom: 225 KB** (can more than double in size)
+- Future-proof for feature additions
 
-3. **Flash device** with new firmware
-
-4. **Then test OTA** with same firmware
-
-**Never mix firmware versions with different bank sizes!**
+**Note:** Bank size cannot be increased further without reducing VM/Data below minimum requirements.
 
 ## File Locations
 
