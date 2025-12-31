@@ -183,8 +183,12 @@ int custom_dual_bank_ota_start(u32 size, u16 crc, u8 version)
         return ERR_NOT_INITIALIZED;
     }
     
+    /* Check if OTA already in progress */
+    /* NOTE: This check is not atomic. In a multi-threaded environment, */
+    /* a mutex would be needed. However, BLE events are typically processed */
+    /* sequentially, so this should be safe. */
     if (g_ota_ctx.state != CUSTOM_OTA_STATE_IDLE) {
-        log_error("Custom OTA: Already in progress\n");
+        log_error("Custom OTA: Already in progress (state=%d)\n", g_ota_ctx.state);
         return ERR_INVALID_STATE;
     }
     
@@ -194,6 +198,13 @@ int custom_dual_bank_ota_start(u32 size, u16 crc, u8 version)
     if (size == 0 || size > CUSTOM_BANK_SIZE) {
         log_error("Custom OTA: Invalid size %d (max %d)\n", size, CUSTOM_BANK_SIZE);
         return ERR_INVALID_SIZE;
+    }
+    
+    /* Validate active bank value */
+    if (g_boot_info.active_bank > 1) {
+        log_error("Custom OTA: Invalid active_bank value %d (expected 0 or 1)\n", g_boot_info.active_bank);
+        log_error("Custom OTA: Boot info may be corrupted, defaulting to Bank A\n");
+        g_boot_info.active_bank = 0;  // Default to Bank A
     }
     
     /* Determine target bank (inactive bank) */
@@ -245,6 +256,17 @@ int custom_dual_bank_ota_data(u8 *data, u16 len)
     if (g_ota_ctx.state != CUSTOM_OTA_STATE_RECEIVING) {
         log_error("Custom OTA: Not in receiving state\n");
         return ERR_INVALID_STATE;
+    }
+    
+    /* Check for overflow - prevent receiving more data than expected */
+    u32 bytes_remaining = g_ota_ctx.total_size - (g_ota_ctx.received_size + g_ota_ctx.buffer_offset);
+    if (len > bytes_remaining) {
+        log_error("Custom OTA: Data overflow! Received %d bytes, but only %d bytes remaining\n", 
+                 len, bytes_remaining);
+        log_error("Custom OTA: Total=%d, Received=%d, Buffered=%d\n",
+                 g_ota_ctx.total_size, g_ota_ctx.received_size, g_ota_ctx.buffer_offset);
+        g_ota_ctx.state = CUSTOM_OTA_STATE_IDLE;
+        return ERR_INVALID_SIZE;
     }
     
     /* Buffer data and write in 4KB chunks */
@@ -439,4 +461,21 @@ u8 custom_dual_bank_get_bank_version(u8 bank)
         return g_boot_info.bank_b.version;
     }
     return 0;
+}
+
+/**
+ * Abort OTA operation and reset to idle state
+ */
+void custom_dual_bank_ota_abort(void)
+{
+    log_info("Custom OTA: Aborting OTA operation\n");
+    
+    /* Free allocated memory if any */
+    if (g_ota_ctx.buffer) {
+        free(g_ota_ctx.buffer);
+    }
+    
+    /* Reset context to idle state */
+    memset(&g_ota_ctx, 0, sizeof(g_ota_ctx));
+    g_ota_ctx.state = CUSTOM_OTA_STATE_IDLE;
 }

@@ -412,6 +412,7 @@ int vm_ble_handle_ota_write(uint16_t conn_handle, const uint8_t *data, uint16_t 
             ret = custom_dual_bank_ota_data(firmware_data, data_len);
             if (ret != 0) {
                 log_error("Custom OTA: Data write failed with error %d\n", ret);
+                custom_dual_bank_ota_abort();  /* Reset both state machines */
                 ota_send_notification(conn_handle, VM_OTA_STATUS_ERROR, ret);
                 ota_state = OTA_STATE_IDLE;
                 return 0x0E;
@@ -443,6 +444,7 @@ int vm_ble_handle_ota_write(uint16_t conn_handle, const uint8_t *data, uint16_t 
             ret = custom_dual_bank_ota_end();
             if (ret != 0) {
                 log_error("Custom OTA: Finish failed with error %d\n", ret);
+                custom_dual_bank_ota_abort();  /* Reset both state machines */
                 ota_send_notification(conn_handle, VM_OTA_STATUS_ERROR, ret);
                 ota_state = OTA_STATE_IDLE;
                 return 0x0E;

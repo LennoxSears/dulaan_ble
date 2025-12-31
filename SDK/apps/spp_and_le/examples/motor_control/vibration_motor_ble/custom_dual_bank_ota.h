@@ -121,6 +121,12 @@ int custom_dual_bank_ota_data(u8 *data, u16 len);
 int custom_dual_bank_ota_end(void);
 
 /**
+ * Abort OTA operation and reset to idle state
+ * Call this on errors to ensure clean state reset
+ */
+void custom_dual_bank_ota_abort(void);
+
+/**
  * Get current OTA progress (0-100)
  * @return Progress percentage
  */
