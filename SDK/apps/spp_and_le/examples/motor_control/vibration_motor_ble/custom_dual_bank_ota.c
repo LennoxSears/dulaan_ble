@@ -258,6 +258,11 @@ int custom_dual_bank_ota_start(u32 size, u16 crc, u8 version)
         return ERR_INVALID_STATE;
     }
     
+    /* NOTE: If flash write protection is enabled in isd_config.ini, */
+    /* flash erase will fail. This must be fixed by reflashing device */
+    /* with FLASH_WRITE_PROTECT = NO in isd_config.ini */
+    log_info("Custom OTA: If erase fails, device needs USB reflash with FLASH_WRITE_PROTECT=NO\n");
+    
     log_info("Custom OTA: START - size=%d, crc=0x%04x, version=%d\n", size, crc, version);
     
     /* Validate size */
