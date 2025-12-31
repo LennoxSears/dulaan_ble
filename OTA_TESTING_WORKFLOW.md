@@ -6,8 +6,8 @@ The device must be running the **exact same firmware** that you're testing OTA w
 
 ## Current Status
 
-- **Bank Size:** 216 KB (221,184 bytes)
-- **Current app.bin:** 219,320 bytes ✓ (fits)
+- **Bank Size:** 256 KB (262,144 bytes)
+- **Current app.bin:** ~220-224 KB ✓ (fits with headroom)
 - **Device firmware:** Must match app.bin in dulaan_ota/
 
 ## Testing Steps
@@ -16,11 +16,11 @@ The device must be running the **exact same firmware** that you're testing OTA w
 ```bash
 # Check app.bin size
 ls -lh dulaan_ota/app.bin
-# Should show: 215K (219,320 bytes)
+# Should show: ~220K (220,000-224,000 bytes)
 
 # Verify it fits in bank
-echo "Max: $((216 * 1024)) bytes"
-# Should show: 221,184 bytes
+echo "Max: $((256 * 1024)) bytes"
+# Should show: 262,144 bytes
 ```
 
 ### 2. Flash Device (First Time)
@@ -42,20 +42,20 @@ SDK/cpu/bd19/tools/app.bin
 ## Common Issues
 
 ### Error: "Invalid START command" (0x01)
-**Cause:** Firmware size exceeds bank size (216 KB)
+**Cause:** Firmware size exceeds bank size (256 KB)
 
 **Solution:**
 1. Check app.bin size: `stat -c %s dulaan_ota/app.bin`
-2. Must be ≤ 221,184 bytes
-3. If larger, use SDK/cpu/bd19/tools/app.bin instead
+2. Must be ≤ 262,144 bytes
+3. If larger, rebuild firmware or increase bank size
 
-### Wrong app.bin in dulaan_ota/
-**Symptom:** File is 222,372 bytes (too large)
+### Browser Cache Issue
+**Symptom:** Web shows different size than actual file
 
 **Fix:**
-```bash
-cp SDK/cpu/bd19/tools/app.bin dulaan_ota/app.bin
-```
+1. Hard refresh browser: Ctrl+Shift+R (Windows/Linux) or Cmd+Shift+R (Mac)
+2. Or clear browser cache
+3. Reload the firmware file
 
 ## Future: Increasing Bank Size
 
