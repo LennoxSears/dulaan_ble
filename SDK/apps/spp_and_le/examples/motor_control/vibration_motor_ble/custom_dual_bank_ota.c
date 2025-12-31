@@ -89,7 +89,7 @@ static int write_boot_info(void)
     /* Erase boot info sector */
     /* WARNING: Power loss between erase and write will corrupt boot info */
     /* TODO: Implement double-buffering or backup mechanism */
-    ret = norflash_erase(0, CUSTOM_BOOT_INFO_ADDR);
+    ret = norflash_erase(FLASH_SECTOR_ERASER, CUSTOM_BOOT_INFO_ADDR);
     if (ret != 0) {
         log_error("Custom OTA: Failed to erase boot info sector\n");
         return ERR_BOOT_INFO_FAILED;
@@ -234,7 +234,7 @@ int custom_dual_bank_ota_start(u32 size, u16 crc, u8 version)
             log_info("Custom OTA: First erase at 0x%08x\n", addr);
         }
         
-        ret = norflash_erase(0, addr);
+        ret = norflash_erase(FLASH_SECTOR_ERASER, addr);
         if (ret != 0) {
             log_error("Custom OTA: Erase failed at 0x%08x, ret=%d, sector %d/%d\n", 
                      addr, ret, i + 1, sectors);

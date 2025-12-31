@@ -86,6 +86,14 @@ typedef struct {
     u16 buffer_offset;          /* Current offset in buffer */
 } custom_ota_ctx_t;
 
+/* Flash eraser types (from SDK norflash.h) */
+enum {
+    FLASH_PAGE_ERASER = 0,      /* 256 bytes */
+    FLASH_SECTOR_ERASER = 1,    /* 4 KB */
+    FLASH_BLOCK_ERASER = 2,     /* 64 KB */
+    FLASH_CHIP_ERASER = 3       /* Entire chip */
+};
+
 /* External flash functions (from SDK) */
 extern int norflash_erase(u8 eraser, u32 addr);
 extern int norflash_write(u32 addr, u8 *buf, u32 len);
