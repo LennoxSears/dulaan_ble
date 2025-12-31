@@ -4,20 +4,20 @@
  * Implements dual-bank OTA update with automatic rollback using low-level
  * flash functions. Works with raw app.bin (~220 KB) instead of jl_isd.fw (450 KB).
  * 
- * Flash Layout (1MB total) - Balanced for firmware and data:
+ * Flash Layout (1MB total) - 4KB ALIGNED for flash operations:
  * 0x000000 - 0x001000 (4 KB):    Bootloader (SDK managed)
- * 0x001000 - 0x001400 (1 KB):    Custom Boot Info
- * 0x001400 - 0x04C400 (300 KB):  Bank A (app.bin)
- * 0x04C400 - 0x097400 (300 KB):  Bank B (app.bin)
- * 0x097400 - 0x100000 (419 KB):  VM/Data partition
+ * 0x001000 - 0x002000 (4 KB):    Custom Boot Info (4KB aligned)
+ * 0x002000 - 0x04E000 (304 KB):  Bank A (app.bin) - 4KB aligned
+ * 0x04E000 - 0x09A000 (304 KB):  Bank B (app.bin) - 4KB aligned
+ * 0x09A000 - 0x100000 (408 KB):  VM/Data partition
  * 
- * Bank size: 300 KB (307,200 bytes)
+ * Bank size: 304 KB (311,296 bytes)
  * - Current firmware: ~220 KB
- * - Headroom: 80 KB (36% growth potential)
- * - VM/Data: 419 KB (ample space for settings, logs, bonding)
+ * - Headroom: 84 KB (38% growth potential)
+ * - VM/Data: 408 KB (ample space for settings, logs, bonding)
  * 
- * This balanced configuration provides sufficient firmware capacity while
- * ensuring adequate space for runtime data storage.
+ * CRITICAL: All addresses MUST be 4KB aligned for flash erase operations!
+ * Flash erase operates on 4KB sectors and requires aligned addresses.
  */
 
 #ifndef CUSTOM_DUAL_BANK_OTA_H
@@ -25,11 +25,11 @@
 
 #include "typedef.h"
 
-/* Flash addresses and sizes */
-#define CUSTOM_BOOT_INFO_ADDR   0x001000    /* Boot info location */
-#define CUSTOM_BANK_A_ADDR      0x001400    /* Bank A start */
-#define CUSTOM_BANK_B_ADDR      0x04C400    /* Bank B start */
-#define CUSTOM_BANK_SIZE        (300 * 1024) /* 300 KB per bank (balanced) */
+/* Flash addresses and sizes - ALL 4KB ALIGNED */
+#define CUSTOM_BOOT_INFO_ADDR   0x001000    /* Boot info location (4KB aligned) */
+#define CUSTOM_BANK_A_ADDR      0x002000    /* Bank A start (4KB aligned) */
+#define CUSTOM_BANK_B_ADDR      0x04E000    /* Bank B start (4KB aligned) */
+#define CUSTOM_BANK_SIZE        (304 * 1024) /* 304 KB per bank (4KB aligned) */
 #define CUSTOM_FLASH_SECTOR     4096        /* 4KB sector size */
 
 /* Boot info magic and version */
